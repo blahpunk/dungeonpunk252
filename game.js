@@ -67,6 +67,104 @@ const STAIRS_UP_SPAWN_CHANCE = 0.40;
 const EDGE_SHADE_PX = Math.max(2, Math.floor(TILE * 0.12));
 const CORNER_CHAMFER_PX = Math.max(3, Math.floor(TILE * 0.22));
 const EDGE_SOFT_PX = Math.max(2, Math.floor(TILE * 0.08));
+const ENV_STYLE_VARIANTS = Object.freeze([
+  {
+    id: "carved_stone",
+    label: "Carved Stone",
+    hueShift: 0,
+    floorSat: 4,
+    floorLight: 1,
+    wallSat: 1,
+    wallLight: 0,
+    borderScale: 1.0,
+    aoScale: 1.0,
+    insetScale: 1.0,
+    noiseScale: 0.75,
+    decalScale: 0.8,
+    highlightScale: 1.0,
+    bottomShadowScale: 0.9,
+  },
+  {
+    id: "industrial_rustpunk",
+    label: "Industrial Rustpunk",
+    hueShift: 10,
+    floorSat: -2,
+    floorLight: -1,
+    wallSat: 5,
+    wallLight: -2,
+    borderScale: 1.12,
+    aoScale: 1.08,
+    insetScale: 1.14,
+    noiseScale: 1.12,
+    decalScale: 1.2,
+    highlightScale: 0.92,
+    bottomShadowScale: 1.08,
+  },
+  {
+    id: "organic_cavern",
+    label: "Organic Cavern",
+    hueShift: -12,
+    floorSat: 2,
+    floorLight: -2,
+    wallSat: -1,
+    wallLight: -2,
+    borderScale: 0.82,
+    aoScale: 1.18,
+    insetScale: 0.78,
+    noiseScale: 1.06,
+    decalScale: 1.02,
+    highlightScale: 0.72,
+    bottomShadowScale: 1.06,
+  },
+  {
+    id: "ancient_brick",
+    label: "Ancient Brick",
+    hueShift: 18,
+    floorSat: 6,
+    floorLight: 0,
+    wallSat: 8,
+    wallLight: 1,
+    borderScale: 1.06,
+    aoScale: 1.02,
+    insetScale: 1.08,
+    noiseScale: 0.86,
+    decalScale: 0.92,
+    highlightScale: 1.04,
+    bottomShadowScale: 0.92,
+  },
+  {
+    id: "corrupted_biome",
+    label: "Corrupted Biome",
+    hueShift: -28,
+    floorSat: 8,
+    floorLight: -3,
+    wallSat: 6,
+    wallLight: -3,
+    borderScale: 0.9,
+    aoScale: 1.26,
+    insetScale: 0.92,
+    noiseScale: 1.2,
+    decalScale: 1.26,
+    highlightScale: 0.68,
+    bottomShadowScale: 1.12,
+  },
+  {
+    id: "basalt_keep",
+    label: "Basalt Keep",
+    hueShift: 4,
+    floorSat: -4,
+    floorLight: -1,
+    wallSat: -2,
+    wallLight: -1,
+    borderScale: 1.2,
+    aoScale: 1.12,
+    insetScale: 1.2,
+    noiseScale: 0.68,
+    decalScale: 0.74,
+    highlightScale: 1.06,
+    bottomShadowScale: 1.0,
+  },
+]);
 const COMBAT_REGEN_DELAY_MS = 3000;
 const COMBAT_REGEN_TICK_MS = 1000;
 const COMBAT_REGEN_PCT_PER_TICK = 0.006;
@@ -1031,48 +1129,158 @@ function hueWrap(h) {
 function hslColor(h, s, l) {
   return `hsl(${Math.round(hueWrap(h))} ${Math.round(s)}% ${Math.round(l)}%)`;
 }
+function hslaColor(h, s, l, a = 1) {
+  return `hsla(${Math.round(hueWrap(h))} ${Math.round(s)}% ${Math.round(l)}% / ${clamp(a, 0, 1)})`;
+}
 function depthHueName(h) {
   const names = ["Red", "Orange", "Yellow", "Lime", "Green", "Teal", "Cyan", "Azure", "Blue", "Violet", "Magenta", "Rose"];
   const idx = Math.floor(hueWrap(h) / 30) % names.length;
   return names[idx];
 }
-function themeForDepth(z) {
+function styleVariantForDepth(depth) {
+  const d = Math.max(0, Math.floor(depth ?? 0));
+  const len = ENV_STYLE_VARIANTS.length;
+  const idx = len > 0 ? ((d % len) + len) % len : 0;
+  const style = ENV_STYLE_VARIANTS[idx] ?? ENV_STYLE_VARIANTS[0];
+  return { index: idx, ...style };
+}
+function generateDepthTheme(z, seedStr = "") {
+  const depth = Math.max(0, Math.floor(z ?? 0));
+  const style = styleVariantForDepth(depth);
+
   if (z <= SURFACE_LEVEL) {
+    const floorBaseH = 94;
+    const floorBaseS = 23;
+    const floorBaseL = 52;
+    const floorAccentH = 92;
+    const floorAccentS = 25;
+    const floorAccentL = 58;
+    const wallBaseH = 157;
+    const wallBaseS = 16;
+    const wallBaseL = 32;
+    const wallShadeH = 156;
+    const wallShadeS = 18;
+    const wallShadeL = 20;
+    const borderThickness = Math.max(2, Math.round(TILE * 0.02));
+    const noiseIntensity = 0.028;
     return {
       name: "Surface",
-      wallV: "#455a52", wallNV: "#2a3832",
-      floorV: "#8da380", floorNV: "#6e8462",
-      doorC_V: "#6e5a3e", doorC_NV: "#4a3b29",
-      doorO_V: "#4f7b63", doorO_NV: "#375241",
-      lockR_V: "#8e4040", lockR_NV: "#5a2626",
-      lockG_V: "#3f8e55", lockG_NV: "#275a37",
-      lockY_V: "#b8a942", lockY_NV: "#70652a",
-      lockO_V: "#b96a38", lockO_NV: "#6e3f22",
-      lockV_V: "#7d4aa8", lockV_NV: "#4b2c64",
-      lockI_V: "#3e4f93", lockI_NV: "#27305a",
-      lockB_V: "#40688e", lockB_NV: "#26415a",
-      lockP_V: "#7d4aa8", lockP_NV: "#4b2c64",
-      lockM_V: "#a83f8c", lockM_NV: "#632553",
-      downV: "#7b6a3d", downNV: "#514528",
-      upV: "#6c5a80", upNV: "#453a52",
+      styleVariant: "surface",
+      styleLabel: "Surface",
+      styleVariantIndex: -1,
+      floorBaseH, floorBaseS, floorBaseL,
+      floorAccentH, floorAccentS, floorAccentL,
+      wallBaseH, wallBaseS, wallBaseL,
+      wallShadeH, wallShadeS, wallShadeL,
+      floorBase: hslColor(floorBaseH, floorBaseS, floorBaseL),
+      floorAccent: hslColor(floorAccentH, floorAccentS, floorAccentL),
+      wallBase: hslColor(wallBaseH, wallBaseS, wallBaseL),
+      wallShade: hslColor(wallShadeH, wallShadeS, wallShadeL),
+      trimColor: hslColor(wallShadeH, wallShadeS, wallShadeL),
+      shadowColor: hslColor(wallShadeH, wallShadeS, Math.max(6, wallShadeL - 8)),
+      highlightColor: hslColor(wallBaseH, Math.max(10, wallBaseS - 4), Math.min(82, wallBaseL + 20)),
+      borderThickness,
+      noiseIntensity,
+      trimAlpha: 0.24,
+      cornerAoAlpha: 0.24,
+      cornerAoSizePx: Math.max(borderThickness + 2, Math.round(TILE * 0.035)),
+      wallInsetPx: Math.max(2, Math.round(TILE * 0.014)),
+      wallHighlightAlpha: 0.12,
+      wallBottomShadowAlpha: 0.12,
+      edgeRoundPx: Math.max(4, Math.round(TILE * 0.032)),
+      decalDensity: 0.052,
+      decalAlpha: 0.12,
+      wallV: hslColor(wallBaseH, wallBaseS, wallBaseL),
+      wallNV: hslColor(wallBaseH, wallBaseS, Math.max(5, Math.round(wallBaseL * 0.56))),
+      floorV: hslColor(floorAccentH, floorAccentS, floorAccentL),
+      floorNV: hslColor(floorBaseH, Math.max(8, floorBaseS - 8), Math.max(5, Math.round(floorBaseL * 0.64))),
+      doorC_V: "#6e5a3e",
+      doorC_NV: "#4a3b29",
+      doorO_V: "#4f7b63",
+      doorO_NV: "#375241",
+      lockR_V: "#8e4040",
+      lockR_NV: "#5a2626",
+      lockG_V: "#3f8e55",
+      lockG_NV: "#275a37",
+      lockY_V: "#b8a942",
+      lockY_NV: "#70652a",
+      lockO_V: "#b96a38",
+      lockO_NV: "#6e3f22",
+      lockV_V: "#7d4aa8",
+      lockV_NV: "#4b2c64",
+      lockI_V: "#3e4f93",
+      lockI_NV: "#27305a",
+      lockB_V: "#40688e",
+      lockB_NV: "#26415a",
+      lockP_V: "#7d4aa8",
+      lockP_NV: "#4b2c64",
+      lockM_V: "#a83f8c",
+      lockM_NV: "#632553",
+      downV: "#7b6a3d",
+      downNV: "#514528",
+      upV: "#6c5a80",
+      upNV: "#453a52",
       overlay: "rgba(0,0,0,0.35)",
     };
   }
 
-  const depth = Math.max(0, z);
-  const hue = (depth * 28) % 360;
-  const wallHue = hue + 18;
-  const floorHue = hue;
-  const doorHue = hue + 34;
+  const rng = makeRng(`${seedStr}|depth-theme|${depth}|${style.id}`);
+  const hue = hueWrap(depth * 28 + style.hueShift + randInt(rng, -8, 8));
+  const wallHue = hue + 18 + randInt(rng, -3, 3);
+  const floorHue = hue + randInt(rng, -2, 2);
+  const doorHue = hue + 34 + randInt(rng, -3, 3);
   const downHue = hue + 58;
   const upHue = hue - 52;
 
+  const floorBaseH = floorHue;
+  const floorBaseS = clamp(40 + style.floorSat + randInt(rng, -3, 3), 18, 64);
+  const floorBaseL = clamp(17 + style.floorLight + randInt(rng, -2, 2), 8, 42);
+  const floorAccentH = floorHue + randInt(rng, -2, 2);
+  const floorAccentS = clamp(floorBaseS + 3 + randInt(rng, -2, 2), 18, 68);
+  const floorAccentL = clamp(floorBaseL + 6 + randInt(rng, -1, 2), floorBaseL + 2, 56);
+
+  const wallBaseH = wallHue;
+  const wallBaseS = clamp(24 + style.wallSat + randInt(rng, -3, 3), 10, 48);
+  const wallBaseL = clamp(27 + style.wallLight + randInt(rng, -2, 2), 12, 48);
+  const wallShadeH = wallHue + randInt(rng, -2, 2);
+  const wallShadeS = clamp(wallBaseS - 2 + randInt(rng, -2, 2), 8, 52);
+  const wallShadeL = clamp(wallBaseL - 9 - Math.max(0, Math.floor(style.insetScale * 1.5)) + randInt(rng, -1, 1), 6, 42);
+
+  const borderThickness = clamp(Math.round(TILE * (0.015 + style.borderScale * 0.006)), 2, Math.max(3, Math.round(TILE * 0.06)));
+  const wallInsetPx = clamp(Math.round(TILE * (0.012 + style.insetScale * 0.007)), 2, Math.max(4, Math.round(TILE * 0.05)));
+  const noiseIntensity = clamp(0.026 * style.noiseScale, 0.012, 0.09);
+
   return {
-    name: `${depthHueName(hue)} Depth`,
-    wallV: hslColor(wallHue, 24, 28),
-    wallNV: hslColor(wallHue, 20, 17),
-    floorV: hslColor(floorHue, 42, 18),
-    floorNV: hslColor(floorHue, 34, 11),
+    name: `${depthHueName(hue)} Depth · ${style.label}`,
+    styleVariant: style.id,
+    styleLabel: style.label,
+    styleVariantIndex: style.index,
+    floorBaseH, floorBaseS, floorBaseL,
+    floorAccentH, floorAccentS, floorAccentL,
+    wallBaseH, wallBaseS, wallBaseL,
+    wallShadeH, wallShadeS, wallShadeL,
+    floorBase: hslColor(floorBaseH, floorBaseS, floorBaseL),
+    floorAccent: hslColor(floorAccentH, floorAccentS, floorAccentL),
+    wallBase: hslColor(wallBaseH, wallBaseS, wallBaseL),
+    wallShade: hslColor(wallShadeH, wallShadeS, wallShadeL),
+    trimColor: hslColor(wallShadeH, wallShadeS, Math.max(5, wallShadeL - 2)),
+    shadowColor: hslColor(wallShadeH, wallShadeS, Math.max(4, wallShadeL - 8)),
+    highlightColor: hslColor(wallBaseH - 5, Math.max(8, wallBaseS - 10), Math.min(84, wallBaseL + 18)),
+    borderThickness,
+    noiseIntensity,
+    trimAlpha: clamp(0.23 * style.borderScale, 0.14, 0.36),
+    cornerAoAlpha: clamp(0.25 * style.aoScale, 0.16, 0.42),
+    cornerAoSizePx: clamp(Math.round(TILE * (0.03 + style.aoScale * 0.015)), borderThickness + 2, Math.round(TILE * 0.12)),
+    wallInsetPx,
+    wallHighlightAlpha: clamp(0.12 * style.highlightScale, 0.06, 0.2),
+    wallBottomShadowAlpha: clamp(0.12 * style.bottomShadowScale, 0.06, 0.24),
+    edgeRoundPx: clamp(Math.round(TILE * (0.03 + (1.2 - style.borderScale) * 0.01)), 4, Math.round(TILE * 0.12)),
+    decalDensity: clamp(0.048 * style.decalScale, 0.03, 0.14),
+    decalAlpha: clamp(0.12 + style.decalScale * 0.03, 0.09, 0.2),
+    wallV: hslColor(wallBaseH, wallBaseS, wallBaseL),
+    wallNV: hslColor(wallBaseH, Math.max(8, wallBaseS - 8), Math.max(4, Math.round(wallBaseL * 0.56))),
+    floorV: hslColor(floorAccentH, floorAccentS, floorAccentL),
+    floorNV: hslColor(floorBaseH, Math.max(8, floorBaseS - 10), Math.max(4, Math.round(floorBaseL * 0.60))),
     doorC_V: hslColor(doorHue, 40, 24),
     doorC_NV: hslColor(doorHue, 32, 14),
     doorO_V: hslColor(doorHue + 18, 36, 27),
@@ -1099,8 +1307,11 @@ function themeForDepth(z) {
     downNV: hslColor(downHue, 34, 15),
     upV: hslColor(upHue, 38, 27),
     upNV: hslColor(upHue, 30, 16),
-    overlay: "rgba(0,0,0,0.52)",
+    overlay: hslaColor(hue + 8, 18, 6, clamp(0.46 + depth * 0.001, 0.46, 0.6)),
   };
+}
+function themeForDepth(z, seedStr = "") {
+  return generateDepthTheme(z, seedStr);
 }
 
 // ---------- Edge hashing (deterministic border openings) ----------
@@ -5686,7 +5897,7 @@ function drawMinimap(state) {
   }
 
   const p = state.player;
-  const theme = applyVisibilityBoostToTheme(themeForDepth(p.z));
+  const theme = applyVisibilityBoostToTheme(themeForDepth(p.z, state.world.seedStr ?? ""));
   mctx.fillStyle = "#05070c";
   mctx.fillRect(0, 0, mini.width, mini.height);
 
@@ -7123,8 +7334,274 @@ function drawCombatHudOverlay(ctx2d, state, nowMs = Date.now()) {
     drawCombatHealthBar(ctx2d, cx, cy, monsterSize, monster.hp, monster.maxHp, "#4fd77f", extraLiftPx);
   }
 }
-function paintTileSurfaceDetail(ctx2d, t, wx, wy, wz, px, py, isVisible) {
-  // Disabled: remove tile marker/detail pass from main game view.
+function tileIsBoundaryForFloor(t) {
+  return t === WALL || t === DOOR_CLOSED || tileIsLocked(t);
+}
+function collectTileNeighbors(getTileAt, wx, wy) {
+  return {
+    N: getTileAt(wx, wy - 1),
+    E: getTileAt(wx + 1, wy),
+    S: getTileAt(wx, wy + 1),
+    W: getTileAt(wx - 1, wy),
+    NE: getTileAt(wx + 1, wy - 1),
+    NW: getTileAt(wx - 1, wy - 1),
+    SE: getTileAt(wx + 1, wy + 1),
+    SW: getTileAt(wx - 1, wy + 1),
+  };
+}
+function tileOverlaySpec(theme, t, isVisible) {
+  if (t === FLOOR || t === WALL) return null;
+  const v = !!isVisible;
+  if (t === DOOR_CLOSED) return { color: v ? theme.doorC_V : theme.doorC_NV, alpha: v ? 0.58 : 0.40 };
+  if (isOpenDoorTile(t)) return { color: v ? theme.doorO_V : theme.doorO_NV, alpha: v ? 0.48 : 0.34 };
+  if (t === LOCK_GREEN) return { color: v ? theme.lockG_V : theme.lockG_NV, alpha: v ? 0.62 : 0.46 };
+  if (t === LOCK_YELLOW) return { color: v ? theme.lockY_V : theme.lockY_NV, alpha: v ? 0.62 : 0.46 };
+  if (t === LOCK_ORANGE) return { color: v ? theme.lockO_V : theme.lockO_NV, alpha: v ? 0.62 : 0.46 };
+  if (t === LOCK_RED) return { color: v ? theme.lockR_V : theme.lockR_NV, alpha: v ? 0.62 : 0.46 };
+  if (t === LOCK_VIOLET) return { color: v ? theme.lockV_V : theme.lockV_NV, alpha: v ? 0.62 : 0.46 };
+  if (t === LOCK_INDIGO || t === LOCK_BLUE || t === LOCK_MAGENTA) return { color: v ? theme.lockI_V : theme.lockI_NV, alpha: v ? 0.62 : 0.46 };
+  if (t === LOCK_PURPLE) return { color: v ? theme.lockV_V : theme.lockV_NV, alpha: v ? 0.62 : 0.46 };
+  if (t === STAIRS_DOWN) return { color: v ? theme.downV : theme.downNV, alpha: v ? 0.44 : 0.32 };
+  if (t === STAIRS_UP) return { color: v ? theme.upV : theme.upNV, alpha: v ? 0.44 : 0.32 };
+  return null;
+}
+function drawFloorDecal(ctx2d, theme, wx, wy, wz, px, py, neighbors, isVisible) {
+  const orthWalls =
+    (tileIsBoundaryForFloor(neighbors.N) ? 1 : 0) +
+    (tileIsBoundaryForFloor(neighbors.E) ? 1 : 0) +
+    (tileIsBoundaryForFloor(neighbors.S) ? 1 : 0) +
+    (tileIsBoundaryForFloor(neighbors.W) ? 1 : 0);
+  const diagWalls =
+    (tileIsBoundaryForFloor(neighbors.NE) ? 1 : 0) +
+    (tileIsBoundaryForFloor(neighbors.NW) ? 1 : 0) +
+    (tileIsBoundaryForFloor(neighbors.SE) ? 1 : 0) +
+    (tileIsBoundaryForFloor(neighbors.SW) ? 1 : 0);
+  const cornerPairCount =
+    ((tileIsBoundaryForFloor(neighbors.N) && tileIsBoundaryForFloor(neighbors.W)) ? 1 : 0) +
+    ((tileIsBoundaryForFloor(neighbors.N) && tileIsBoundaryForFloor(neighbors.E)) ? 1 : 0) +
+    ((tileIsBoundaryForFloor(neighbors.S) && tileIsBoundaryForFloor(neighbors.W)) ? 1 : 0) +
+    ((tileIsBoundaryForFloor(neighbors.S) && tileIsBoundaryForFloor(neighbors.E)) ? 1 : 0);
+
+  const deadEndBoost = orthWalls >= 3 ? 0.04 : 0;
+  const density = clamp(
+    (theme.decalDensity ?? 0.05) + orthWalls * 0.008 + diagWalls * 0.004 + cornerPairCount * 0.006 + deadEndBoost,
+    0.03,
+    0.15
+  );
+  const styleSalt = Math.max(0, Math.floor(theme.styleVariantIndex ?? 0));
+  const roll = tileNoise01(wx, wy, wz, 1507 + styleSalt * 17);
+  if (roll > density) return;
+
+  const alphaBase = clamp((theme.decalAlpha ?? 0.12) * (isVisible ? 1 : 0.48), 0.05, 0.26);
+  const typeRoll = tileNoise01(wx, wy, wz, 1519 + styleSalt * 19);
+  const decalHue = theme.wallShadeH ?? theme.floorBaseH ?? 0;
+  const decalSat = Math.max(6, (theme.wallShadeS ?? 20) - 5);
+  const decalLight = Math.max(4, (theme.wallShadeL ?? 14) - 2);
+
+  if (typeRoll < 0.45) {
+    const x1 = px + TILE * (0.18 + tileNoise01(wx, wy, wz, 1531) * 0.58);
+    const y1 = py + TILE * (0.20 + tileNoise01(wx, wy, wz, 1537) * 0.54);
+    const x2 = px + TILE * (0.18 + tileNoise01(wx, wy, wz, 1541) * 0.58);
+    const y2 = py + TILE * (0.20 + tileNoise01(wx, wy, wz, 1543) * 0.54);
+    ctx2d.strokeStyle = hslaColor(decalHue, decalSat, decalLight, alphaBase * 0.92);
+    ctx2d.lineWidth = Math.max(1, Math.round(TILE * 0.0048));
+    ctx2d.lineCap = "round";
+    ctx2d.beginPath();
+    ctx2d.moveTo(Math.round(x1), Math.round(y1));
+    ctx2d.lineTo(Math.round((x1 + x2) * 0.5 + TILE * (tileNoise01(wx, wy, wz, 1547) - 0.5) * 0.08), Math.round((y1 + y2) * 0.5));
+    ctx2d.lineTo(Math.round(x2), Math.round(y2));
+    ctx2d.stroke();
+    return;
+  }
+
+  if (typeRoll < 0.78) {
+    const patchW = Math.round(TILE * (0.12 + tileNoise01(wx, wy, wz, 1553) * 0.16));
+    const patchH = Math.round(TILE * (0.07 + tileNoise01(wx, wy, wz, 1559) * 0.12));
+    const corner = Math.floor(tileNoise01(wx, wy, wz, 1567) * 4) % 4;
+    let bx = px + Math.round(TILE * 0.08);
+    let by = py + Math.round(TILE * 0.08);
+    if (corner === 1) bx = px + TILE - patchW - Math.round(TILE * 0.08);
+    else if (corner === 2) { bx = px + TILE - patchW - Math.round(TILE * 0.08); by = py + TILE - patchH - Math.round(TILE * 0.08); }
+    else if (corner === 3) by = py + TILE - patchH - Math.round(TILE * 0.08);
+    ctx2d.fillStyle = hslaColor(decalHue, decalSat, decalLight, alphaBase * 0.86);
+    ctx2d.fillRect(bx, by, patchW, patchH);
+    return;
+  }
+
+  const speckCount = 2 + Math.floor(tileNoise01(wx, wy, wz, 1571) * 3);
+  ctx2d.fillStyle = hslaColor(decalHue, decalSat, decalLight, alphaBase * 0.74);
+  for (let i = 0; i < speckCount; i++) {
+    const nx = tileNoise01(wx, wy, wz, 1581 + i * 7);
+    const ny = tileNoise01(wx, wy, wz, 1591 + i * 11);
+    const r = Math.max(1, Math.round(TILE * (0.003 + tileNoise01(wx, wy, wz, 1601 + i * 13) * 0.0036)));
+    const cx = px + Math.round(TILE * (0.16 + nx * 0.68));
+    const cy = py + Math.round(TILE * (0.16 + ny * 0.68));
+    ctx2d.beginPath();
+    ctx2d.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx2d.fill();
+  }
+}
+function drawFloorCell(ctx2d, theme, wx, wy, wz, px, py, neighbors, isVisible, tileType = FLOOR) {
+  const visMul = isVisible ? 1 : 0.68;
+  const noiseIntensity = Math.max(0.008, Number(theme.noiseIntensity) || 0.02);
+  const variationSpan = clamp(noiseIntensity * 2.2, 0.03, 0.11);
+  const variation = (1 - variationSpan / 2) + tileNoise01(wx, wy, wz, 121) * variationSpan;
+  const baseL = clamp((theme.floorBaseL ?? 18) * variation * visMul, 3, 94);
+  ctx2d.fillStyle = hslColor(theme.floorBaseH ?? 0, theme.floorBaseS ?? 40, baseL);
+  ctx2d.fillRect(px, py, TILE, TILE);
+
+  const blotchRoll = tileNoise01(wx, wy, wz, 127);
+  if (blotchRoll < noiseIntensity * 0.92) {
+    const bw = Math.round(TILE * (0.14 + tileNoise01(wx, wy, wz, 131) * 0.22));
+    const bh = Math.round(TILE * (0.08 + tileNoise01(wx, wy, wz, 137) * 0.18));
+    const bx = px + Math.round(TILE * (0.08 + tileNoise01(wx, wy, wz, 139) * 0.72));
+    const by = py + Math.round(TILE * (0.08 + tileNoise01(wx, wy, wz, 149) * 0.72));
+    const accentL = clamp((theme.floorAccentL ?? (theme.floorBaseL ?? 18)) * visMul, 3, 94);
+    ctx2d.fillStyle = hslaColor(theme.floorAccentH ?? 0, theme.floorAccentS ?? 38, accentL, (isVisible ? 0.09 : 0.05) * (0.7 + noiseIntensity * 3));
+    ctx2d.fillRect(bx, by, bw, bh);
+  }
+
+  const nB = tileIsBoundaryForFloor(neighbors.N);
+  const eB = tileIsBoundaryForFloor(neighbors.E);
+  const sB = tileIsBoundaryForFloor(neighbors.S);
+  const wB = tileIsBoundaryForFloor(neighbors.W);
+  const orthWalls = (nB ? 1 : 0) + (eB ? 1 : 0) + (sB ? 1 : 0) + (wB ? 1 : 0);
+
+  const trimT = clamp(Math.round(theme.borderThickness ?? 2), 1, Math.round(TILE * 0.14));
+  const trimAlpha = clamp((theme.trimAlpha ?? 0.22) * (isVisible ? 1 : 0.6) * (1 + orthWalls * 0.08), 0.05, 0.44);
+  ctx2d.fillStyle = hslaColor(theme.wallShadeH ?? 0, theme.wallShadeS ?? 20, Math.max(4, (theme.wallShadeL ?? 12) - 2), trimAlpha);
+  if (nB) ctx2d.fillRect(px, py, TILE, trimT);
+  if (sB) ctx2d.fillRect(px, py + TILE - trimT, TILE, trimT);
+  if (wB) ctx2d.fillRect(px, py, trimT, TILE);
+  if (eB) ctx2d.fillRect(px + TILE - trimT, py, trimT, TILE);
+
+  const cornerSize = clamp(Math.round(theme.cornerAoSizePx ?? (trimT * 2)), trimT + 2, Math.round(TILE * 0.16));
+  const cornerAlpha = clamp((theme.cornerAoAlpha ?? 0.24) * (isVisible ? 1 : 0.62) * (1 + orthWalls * 0.12), 0.06, 0.54);
+  if (cornerAlpha > 0.01) {
+    ctx2d.fillStyle = hslaColor(theme.wallShadeH ?? 0, theme.wallShadeS ?? 20, Math.max(3, (theme.wallShadeL ?? 12) - 5), cornerAlpha);
+    if (nB && wB) {
+      ctx2d.beginPath();
+      ctx2d.moveTo(px, py);
+      ctx2d.lineTo(px + cornerSize, py);
+      ctx2d.lineTo(px, py + cornerSize);
+      ctx2d.closePath();
+      ctx2d.fill();
+    }
+    if (nB && eB) {
+      ctx2d.beginPath();
+      ctx2d.moveTo(px + TILE, py);
+      ctx2d.lineTo(px + TILE - cornerSize, py);
+      ctx2d.lineTo(px + TILE, py + cornerSize);
+      ctx2d.closePath();
+      ctx2d.fill();
+    }
+    if (sB && wB) {
+      ctx2d.beginPath();
+      ctx2d.moveTo(px, py + TILE);
+      ctx2d.lineTo(px + cornerSize, py + TILE);
+      ctx2d.lineTo(px, py + TILE - cornerSize);
+      ctx2d.closePath();
+      ctx2d.fill();
+    }
+    if (sB && eB) {
+      ctx2d.beginPath();
+      ctx2d.moveTo(px + TILE, py + TILE);
+      ctx2d.lineTo(px + TILE - cornerSize, py + TILE);
+      ctx2d.lineTo(px + TILE, py + TILE - cornerSize);
+      ctx2d.closePath();
+      ctx2d.fill();
+    }
+  }
+
+  const nwB = tileIsBoundaryForFloor(neighbors.NW);
+  const neB = tileIsBoundaryForFloor(neighbors.NE);
+  const swB = tileIsBoundaryForFloor(neighbors.SW);
+  const seB = tileIsBoundaryForFloor(neighbors.SE);
+  const roundRadius = clamp(Math.round(theme.edgeRoundPx ?? (trimT * 2)), trimT + 2, Math.round(TILE * 0.2));
+  const roundAlpha = clamp(cornerAlpha * 0.56, 0.03, 0.24);
+  if (roundAlpha > 0.01) {
+    ctx2d.fillStyle = hslaColor(theme.wallShadeH ?? 0, theme.wallShadeS ?? 20, Math.max(3, (theme.wallShadeL ?? 12) - 4), roundAlpha);
+    if (!nB && !wB && nwB) {
+      ctx2d.beginPath();
+      ctx2d.moveTo(px, py);
+      ctx2d.arc(px, py, roundRadius, 0, Math.PI / 2);
+      ctx2d.closePath();
+      ctx2d.fill();
+    }
+    if (!nB && !eB && neB) {
+      ctx2d.beginPath();
+      ctx2d.moveTo(px + TILE, py);
+      ctx2d.arc(px + TILE, py, roundRadius, Math.PI / 2, Math.PI);
+      ctx2d.closePath();
+      ctx2d.fill();
+    }
+    if (!sB && !eB && seB) {
+      ctx2d.beginPath();
+      ctx2d.moveTo(px + TILE, py + TILE);
+      ctx2d.arc(px + TILE, py + TILE, roundRadius, Math.PI, Math.PI * 1.5);
+      ctx2d.closePath();
+      ctx2d.fill();
+    }
+    if (!sB && !wB && swB) {
+      ctx2d.beginPath();
+      ctx2d.moveTo(px, py + TILE);
+      ctx2d.arc(px, py + TILE, roundRadius, Math.PI * 1.5, Math.PI * 2);
+      ctx2d.closePath();
+      ctx2d.fill();
+    }
+  }
+
+  if (tileType === FLOOR) drawFloorDecal(ctx2d, theme, wx, wy, wz, px, py, neighbors, isVisible);
+}
+function drawWallCell(ctx2d, theme, wx, wy, wz, px, py, neighbors, isVisible) {
+  const visMul = isVisible ? 1 : 0.65;
+  const baseVarSpan = clamp((theme.noiseIntensity ?? 0.02) * 0.9, 0.02, 0.08);
+  const baseVar = (1 - baseVarSpan / 2) + tileNoise01(wx, wy, wz, 167) * baseVarSpan;
+  const baseL = clamp((theme.wallBaseL ?? 28) * baseVar * visMul, 3, 94);
+  ctx2d.fillStyle = hslColor(theme.wallBaseH ?? 0, theme.wallBaseS ?? 24, baseL);
+  ctx2d.fillRect(px, py, TILE, TILE);
+
+  const inset = clamp(Math.round(theme.wallInsetPx ?? 2), 1, Math.round(TILE * 0.18));
+  const innerW = Math.max(1, TILE - inset * 2);
+  const innerH = Math.max(1, TILE - inset * 2);
+  const shadeL = clamp((theme.wallShadeL ?? 16) * visMul, 2, 92);
+  ctx2d.fillStyle = hslColor(theme.wallShadeH ?? 0, theme.wallShadeS ?? 20, shadeL);
+  ctx2d.fillRect(px + inset, py + inset, innerW, innerH);
+
+  if (chunkFloorishTile(neighbors.N)) {
+    const hlH = Math.max(1, Math.round(inset * 0.72));
+    ctx2d.fillStyle = hslaColor(theme.wallBaseH ?? 0, Math.max(8, (theme.wallBaseS ?? 24) - 10), Math.min(92, (theme.wallBaseL ?? 28) + 20), (theme.wallHighlightAlpha ?? 0.12) * (isVisible ? 1 : 0.55));
+    ctx2d.fillRect(px, py, TILE, hlH);
+  }
+
+  if (chunkFloorishTile(neighbors.S) || chunkFloorishTile(neighbors.E) || chunkFloorishTile(neighbors.W)) {
+    const shH = Math.max(1, Math.round(inset * 0.65));
+    ctx2d.fillStyle = hslaColor(theme.wallShadeH ?? 0, theme.wallShadeS ?? 20, Math.max(2, (theme.wallShadeL ?? 16) - 6), (theme.wallBottomShadowAlpha ?? 0.12) * (isVisible ? 1 : 0.6));
+    ctx2d.fillRect(px, py + TILE - shH, TILE, shH);
+  }
+}
+function drawEnvironmentTile(ctx2d, theme, wx, wy, wz, px, py, t, neighbors, isVisible) {
+  if (t === WALL) {
+    drawWallCell(ctx2d, theme, wx, wy, wz, px, py, neighbors, isVisible);
+    return;
+  }
+
+  if (t === FLOOR || t === DOOR_CLOSED || isOpenDoorTile(t) || tileIsLocked(t) || t === STAIRS_DOWN || t === STAIRS_UP) {
+    drawFloorCell(ctx2d, theme, wx, wy, wz, px, py, neighbors, isVisible, t);
+    const overlay = tileOverlaySpec(theme, t, isVisible);
+    if (overlay) {
+      ctx2d.save();
+      ctx2d.globalAlpha = clamp(overlay.alpha, 0, 1);
+      ctx2d.fillStyle = overlay.color;
+      ctx2d.fillRect(px, py, TILE, TILE);
+      ctx2d.restore();
+    }
+    return;
+  }
+
+  const fallback = isVisible ? (theme.floorV ?? "#111722") : (theme.floorNV ?? "#0b0e14");
+  ctx2d.fillStyle = fallback;
+  ctx2d.fillRect(px, py, TILE, TILE);
 }
 function drawShrineParticles(ctx2d, cx, cy, timeSec, wx, wy, wz) {
   const count = visualFxQuality >= 2 ? (MOBILE_VISIBILITY_BOOST ? 2 : 3) : 1;
@@ -8337,11 +8814,29 @@ function draw(state) {
   const { world, player, seen, visible } = state;
   const { monsters, items } = getCachedOccupancy(state);
   updateContextActionButton(state, { monsters, items });
-  const theme = applyVisibilityBoostToTheme(themeForDepth(player.z));
+  const theme = applyVisibilityBoostToTheme(themeForDepth(player.z, world.seedStr ?? ""));
   const timeSec = Date.now() / 1000;
   const deferredWorldObjects = [];
   const auraMax = visualFxQuality <= 0 ? 0 : (MOBILE_VISIBILITY_BOOST ? 1 : (visualFxQuality >= 2 ? 5 : 2));
   let auraBudget = auraMax;
+  const z = player.z;
+  const tileCache = new Map();
+  const minWX = player.x - viewRadiusX - 1;
+  const maxWX = player.x + viewRadiusX + 1;
+  const minWY = player.y - viewRadiusY - 1;
+  const maxWY = player.y + viewRadiusY + 1;
+  for (let y = minWY; y <= maxWY; y++) {
+    for (let x = minWX; x <= maxWX; x++) {
+      tileCache.set(keyXY(x, y), world.getTile(x, y, z));
+    }
+  }
+  const getTileAt = (x, y) => {
+    const k = keyXY(x, y);
+    if (tileCache.has(k)) return tileCache.get(k);
+    const t = world.getTile(x, y, z);
+    tileCache.set(k, t);
+    return t;
+  };
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.imageSmoothingEnabled = true;
@@ -8358,34 +8853,12 @@ function draw(state) {
       const isSeen = seen.has(keyXYZ(wx, wy, player.z));
       if (!isSeen) continue;
 
-      const t = world.getTile(wx, wy, player.z);
-
-      let fill = "#0b0e14";
-      if (t === WALL) fill = isVisible ? theme.wallV : theme.wallNV;
-      if (t === FLOOR) fill = isVisible ? theme.floorV : theme.floorNV;
-      if (t === DOOR_CLOSED) fill = isVisible ? theme.doorC_V : theme.doorC_NV;
-      if (isOpenDoorTile(t)) fill = isVisible ? theme.doorO_V : theme.doorO_NV;
-      if (t === LOCK_GREEN) fill = isVisible ? theme.lockG_V : theme.lockG_NV;
-      if (t === LOCK_YELLOW) fill = isVisible ? theme.lockY_V : theme.lockY_NV;
-      if (t === LOCK_ORANGE) fill = isVisible ? theme.lockO_V : theme.lockO_NV;
-      if (t === LOCK_RED) fill = isVisible ? theme.lockR_V : theme.lockR_NV;
-      if (t === LOCK_VIOLET) fill = isVisible ? theme.lockV_V : theme.lockV_NV;
-      if (t === LOCK_INDIGO) fill = isVisible ? theme.lockI_V : theme.lockI_NV;
-      if (t === LOCK_BLUE) fill = isVisible ? theme.lockI_V : theme.lockI_NV;
-      if (t === LOCK_PURPLE) fill = isVisible ? theme.lockV_V : theme.lockV_NV;
-      if (t === LOCK_MAGENTA) fill = isVisible ? theme.lockI_V : theme.lockI_NV;
-      if (t === STAIRS_DOWN) fill = isVisible ? theme.downV : theme.downNV;
-      if (t === STAIRS_UP) fill = isVisible ? theme.upV : theme.upNV;
+      const t = getTileAt(wx, wy);
+      const neighbors = collectTileNeighbors(getTileAt, wx, wy);
 
       const px = sx * TILE;
       const py = sy * TILE;
-      ctx.fillStyle = fill;
-      ctx.fillRect(px, py, TILE, TILE);
-      if (visualFxQuality > 0) {
-        paintTileSurfaceDetail(ctx, t, wx, wy, player.z, px, py, isVisible);
-      }
-
-      // Edge bevel/chamfer pass disabled to remove visible grid lines between cells.
+      drawEnvironmentTile(ctx, theme, wx, wy, player.z, px, py, t, neighbors, isVisible);
 
       const tileSpriteKind = tileSpriteId(state, wx, wy, player.z, t);
       if (visualFxQuality > 0 && (isVisible || !fogEnabled) && (t === STAIRS_UP || t === STAIRS_DOWN)) {
