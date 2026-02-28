@@ -2490,64 +2490,115 @@ function shopRefreshIntervalMsForLevel(levelRaw) {
   return sec * 1000;
 }
 
-function premiumShopTypePoolForLevel(levelRaw) {
+function shopTierIndexForLevel(levelRaw) {
   const level = Math.max(1, Math.floor(levelRaw ?? 1));
-  const baselineTierIdx = clamp(Math.floor((level - 1) / 2), 0, METAL_TIERS.length - 1);
-  let minIdx = baselineTierIdx + 3;
-  let maxIdx = baselineTierIdx + 5;
-  if (minIdx >= METAL_TIERS.length) {
-    minIdx = Math.max(0, METAL_TIERS.length - 3);
-    maxIdx = METAL_TIERS.length - 1;
-  } else {
-    maxIdx = Math.min(METAL_TIERS.length - 1, maxIdx);
-  }
-  const premiumTypes = [];
-  for (let idx = minIdx; idx <= maxIdx; idx++) {
-    const material = METAL_TIERS[idx]?.id;
-    if (!material) continue;
-    for (const kind of WEAPON_KINDS) premiumTypes.push(weaponType(material, kind));
-    for (const slot of ARMOR_SLOTS) premiumTypes.push(armorType(material, slot));
-  }
-  return premiumTypes;
+  return clamp(Math.floor((level - 1) / 2), 0, METAL_TIERS.length - 1);
 }
 
-function enforcePremiumShopTypes(state, types, targetCount) {
-  const nextTypes = [...types];
-  const wantedPremium = clamp(randInt(Math.random, 2, 4), 2, Math.max(2, targetCount));
-  const premiumPool = premiumShopTypePoolForLevel(state.player.level);
-  if (!premiumPool.length || targetCount <= 0) return nextTypes.slice(0, targetCount);
+function randomPotionStockAmount(rng = Math.random) {
+  return randInt(rng, 8, 15);
+}
 
-  const currentPremiumIdx = nextTypes
-    .map((type, idx) => ({ type, idx }))
-    .filter((entry) => premiumPool.includes(entry.type))
-    .map((entry) => entry.idx);
-  let premiumCount = currentPremiumIdx.length;
-  if (premiumCount >= wantedPremium) return nextTypes.slice(0, targetCount);
+function buildShopGearPoolByTier() {
+  const byTier = new Map();
+  for (let tierIdx = 0; tierIdx < METAL_TIERS.length; tierIdx++) {
+    const material = METAL_TIERS[tierIdx]?.id;
+    if (!material) continue;
+    const types = [];
+    for (const kind of WEAPON_KINDS) types.push(weaponType(material, kind));
+    for (const slot of ARMOR_SLOTS) types.push(armorType(material, slot));
+    byTier.set(tierIdx, types);
+  }
+  return byTier;
+}
 
-  const availablePremium = premiumPool.filter((type) => !nextTypes.includes(type));
-  const nonPremiumIndices = nextTypes
-    .map((type, idx) => ({ type, idx }))
-    .filter((entry) => !premiumPool.includes(entry.type))
-    .map((entry) => entry.idx);
+function drawUniqueFromPool(rng, pool, count, taken = new Set()) {
+  if (!Array.isArray(pool) || pool.length <= 0 || count <= 0) return [];
+  const available = pool.filter((type) => type && !taken.has(type));
+  if (!available.length) return [];
+  const out = [];
+  while (available.length && out.length < count) {
+    const pick = randInt(rng, 0, available.length - 1);
+    const type = available.splice(pick, 1)[0];
+    if (!type || taken.has(type)) continue;
+    taken.add(type);
+    out.push(type);
+  }
+  return out;
+}
 
-  while (premiumCount < wantedPremium && availablePremium.length > 0) {
-    const pickIdx = randInt(Math.random, 0, availablePremium.length - 1);
-    const chosenType = availablePremium.splice(pickIdx, 1)[0];
-    if (!chosenType) continue;
+function targetShopCountsForLevel(levelRaw) {
+  const level = Math.max(1, Math.floor(levelRaw ?? 1));
+  const total = clamp(10 + Math.floor(level / 8), 10, 14);
+  const gear = Math.max(4, total - 1);
+  return { total, gear };
+}
 
-    let replaceAt = nonPremiumIndices.shift();
-    if (!Number.isInteger(replaceAt)) replaceAt = nextTypes.length < targetCount ? nextTypes.length : randInt(Math.random, 0, Math.max(0, nextTypes.length - 1));
-    if (replaceAt >= nextTypes.length) nextTypes.push(chosenType);
-    else nextTypes[replaceAt] = chosenType;
-    premiumCount += 1;
+function buildShopGearTypesForLevel(levelRaw, rng = Math.random) {
+  const playerTier = shopTierIndexForLevel(levelRaw);
+  const poolByTier = buildShopGearPoolByTier();
+  const { gear: gearTarget } = targetShopCountsForLevel(levelRaw);
+  const taken = new Set();
+  const out = [];
+
+  const takeFromTierDelta = (minDelta, maxDelta, wanted) => {
+    const bucket = [];
+    for (let d = minDelta; d <= maxDelta; d++) {
+      const idx = playerTier + d;
+      if (idx < 0 || idx >= METAL_TIERS.length) continue;
+      bucket.push(...(poolByTier.get(idx) ?? []));
+    }
+    const picked = drawUniqueFromPool(rng, bucket, wanted, taken);
+    out.push(...picked);
+    return picked.length;
+  };
+
+  // 2-3 items one tier higher.
+  const oneTierWanted = randInt(rng, 2, 3);
+  takeFromTierDelta(1, 1, oneTierWanted);
+
+  // Sometimes 1-2 items 2-3 tiers higher.
+  const twoThreeRoll = rng();
+  const twoThreeWanted = twoThreeRoll < 0.16 ? 2 : (twoThreeRoll < 0.44 ? 1 : 0);
+  takeFromTierDelta(2, 3, twoThreeWanted);
+
+  // Very rarely one 4-tier item.
+  if (rng() < 0.05) takeFromTierDelta(4, 4, 1);
+
+  // Once in a blue moon one 5-tier item.
+  if (rng() < 0.01) takeFromTierDelta(5, 5, 1);
+
+  // Mostly around player tier or lower.
+  if (out.length < gearTarget) {
+    const corePool = [];
+    for (let idx = 0; idx <= playerTier; idx++) corePool.push(...(poolByTier.get(idx) ?? []));
+    out.push(...drawUniqueFromPool(rng, corePool, gearTarget - out.length, taken));
   }
 
-  const unique = [];
-  for (const type of nextTypes) {
-    if (type && !unique.includes(type)) unique.push(type);
-    if (unique.length >= targetCount) break;
+  // Fallback fill (if near top tiers and constrained).
+  if (out.length < gearTarget) {
+    const anyPool = [];
+    for (let idx = 0; idx < METAL_TIERS.length; idx++) anyPool.push(...(poolByTier.get(idx) ?? []));
+    out.push(...drawUniqueFromPool(rng, anyPool, gearTarget - out.length, taken));
   }
-  return unique.slice(0, targetCount);
+
+  return out.slice(0, gearTarget);
+}
+
+function ensurePotionStockEntry(stock, depth, rng = Math.random) {
+  if (!Array.isArray(stock)) return;
+  const idx = stock.findIndex((entry) => entry?.type === "potion");
+  const refill = randomPotionStockAmount(rng);
+  if (idx < 0) {
+    stock.unshift({ type: "potion", price: shopBuyPrice("potion", depth), amount: refill });
+    return;
+  }
+  const entry = stock[idx];
+  entry.price = shopBuyPrice("potion", depth);
+  const cur = Math.max(0, Math.floor(entry.amount ?? 0));
+  if (cur < 4) entry.amount = refill;
+  else if (cur > 15) entry.amount = 15;
+  else entry.amount = cur;
 }
 
 function shopCatalogForDepth(depth) {
@@ -2601,7 +2652,7 @@ function drawUniqueWeightedItems(rng, weightedItems, count) {
 }
 
 function buildShopStockEntry(type, depth) {
-  const amount = type === "potion" ? randInt(Math.random, 1, 5) : 1;
+  const amount = type === "potion" ? randomPotionStockAmount(Math.random) : 1;
   return { type, price: shopBuyPrice(type, depth), amount };
 }
 
@@ -2609,23 +2660,15 @@ function ensureShopState(state) {
   if (state.shop) return;
   const now = Date.now();
   const depth = shopProgressScore(state);
-  const catalog = shopCatalogForDepth(depth);
-  const size = clamp(10 + Math.floor(depth / 2), 10, Math.min(17, catalog.length));
-  let types = drawUniqueWeightedItems(Math.random, catalog, size);
-  types = enforcePremiumShopTypes(state, types, size);
-  if (types.length < size) {
-    const fill = drawUniqueWeightedItems(
-      Math.random,
-      catalog.filter((c) => !types.includes(c.type)),
-      size - types.length
-    );
-    types = types.concat(fill);
-  }
+  const { total } = targetShopCountsForLevel(state.player.level);
+  const gearTypes = buildShopGearTypesForLevel(state.player.level, Math.random);
+  const types = ["potion", ...gearTypes].slice(0, total);
   state.shop = {
     stock: types.map((type) => buildShopStockEntry(type, depth)),
     lastRefreshMs: now,
     nextRefreshMs: now + shopRefreshIntervalMsForLevel(state.player.level),
   };
+  ensurePotionStockEntry(state.shop.stock, depth, Math.random);
 }
 
 function refreshShopStock(state, force = false) {
@@ -2634,45 +2677,11 @@ function refreshShopStock(state, force = false) {
   if (!force && now < (state.shop?.nextRefreshMs ?? 0)) return false;
 
   const depth = shopProgressScore(state);
-  const catalog = shopCatalogForDepth(depth);
-  const targetCount = clamp(10 + Math.floor(depth / 2), 10, Math.min(17, catalog.length));
-  let nextTypes = (state.shop?.stock ?? []).map((s) => s.type).slice(0, targetCount);
-
-  if (nextTypes.length < targetCount) {
-    const fill = drawUniqueWeightedItems(
-      Math.random,
-      catalog.filter((c) => !nextTypes.includes(c.type)),
-      targetCount - nextTypes.length
-    );
-    nextTypes = nextTypes.concat(fill);
-  }
-
-  if (nextTypes.length === 0) {
-    nextTypes = drawUniqueWeightedItems(Math.random, catalog, targetCount);
-  } else {
-    const maxChange = Math.min(6, nextTypes.length);
-    const minChange = Math.min(3, maxChange);
-    const changeCount = randInt(Math.random, minChange, maxChange);
-    const idxOrder = [...nextTypes.keys()].sort(() => Math.random() - 0.5).slice(0, changeCount);
-    for (const idx of idxOrder) {
-      const current = nextTypes[idx];
-      const alternatives = catalog.filter((c) => c.type !== current && !nextTypes.includes(c.type));
-      if (!alternatives.length) continue;
-      const picked = drawUniqueWeightedItems(Math.random, alternatives, 1)[0];
-      if (picked) nextTypes[idx] = picked;
-    }
-  }
-  nextTypes = enforcePremiumShopTypes(state, nextTypes, targetCount);
-  if (nextTypes.length < targetCount) {
-    const fill = drawUniqueWeightedItems(
-      Math.random,
-      catalog.filter((c) => !nextTypes.includes(c.type)),
-      targetCount - nextTypes.length
-    );
-    nextTypes = nextTypes.concat(fill);
-  }
-
+  const { total } = targetShopCountsForLevel(state.player.level);
+  const gearTypes = buildShopGearTypesForLevel(state.player.level, Math.random);
+  const nextTypes = ["potion", ...gearTypes].slice(0, total);
   state.shop.stock = nextTypes.map((type) => buildShopStockEntry(type, depth));
+  ensurePotionStockEntry(state.shop.stock, depth, Math.random);
   state.shop.lastRefreshMs = now;
   state.shop.nextRefreshMs = now + shopRefreshIntervalMsForLevel(state.player.level);
   return true;
@@ -2874,6 +2883,8 @@ function renderShopOverlay(state) {
           currentStock.splice(liveIndex, 1);
           if (shopUi.selectedBuy >= currentStock.length) shopUi.selectedBuy = Math.max(0, currentStock.length - 1);
         }
+        // Keep potion shelves healthy: refill to a random stock band once they run low.
+        ensurePotionStockEntry(currentStock, shopProgressScore(state), Math.random);
         if (freeShopping) pushLog(state, `Bought ${liveSelectedName} for free.`);
         else pushLog(state, `Bought ${liveSelectedName} for ${liveSelected.price} gold.`);
       }
