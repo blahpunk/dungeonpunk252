@@ -2,8 +2,8 @@
 declare(strict_types=1);
 require_once __DIR__ . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR . 'bootstrap.php';
 
-@ini_set('upload_max_filesize', '64M');
-@ini_set('post_max_size', '68M');
+@ini_set('upload_max_filesize', '128M');
+@ini_set('post_max_size', '132M');
 @ini_set('max_file_uploads', '20');
 
 $sessionLifetimeSeconds = 60 * 60 * 24 * 365;
@@ -31,7 +31,7 @@ const ADMIN_EMAIL = 'eric.zeigenbein@gmail.com';
 const MAX_SERVER_SAVES = 5;
 const SAVE_NAME_MAX_LEN = 48;
 const SAVE_PAYLOAD_MAX_LEN = 2000000;
-const SPRITE_UPLOAD_MAX_BYTES = 50000000;
+const SPRITE_UPLOAD_MAX_BYTES = 100000000;
 const LOCAL_AUTH_COOKIE = 'bp_auth_user';
 const LOCAL_AUTH_SIG_COOKIE = 'bp_auth_sig';
 
@@ -312,14 +312,27 @@ function sprite_allowed_mime_to_ext(): array
   ];
 }
 
-function sprite_custom_primary_root_path(): string
+/**
+ * @return array<string, string>
+ */
+function sprite_allowed_ext_to_mime(): array
 {
-  return app_storage_path('sprites/custom');
+  return [
+    'png' => 'image/png',
+    'webp' => 'image/webp',
+    'jpg' => 'image/jpeg',
+    'jpeg' => 'image/jpeg',
+  ];
 }
 
-function sprite_custom_legacy_root_path(): string
+function sprite_custom_canonical_root_path(): string
 {
   return __DIR__ . DIRECTORY_SEPARATOR . 'client' . DIRECTORY_SEPARATOR . 'assets' . DIRECTORY_SEPARATOR . 'sprites' . DIRECTORY_SEPARATOR . 'custom';
+}
+
+function sprite_custom_primary_root_path(): string
+{
+  return sprite_custom_canonical_root_path();
 }
 
 /**
@@ -327,15 +340,7 @@ function sprite_custom_legacy_root_path(): string
  */
 function sprite_custom_roots_for_lookup(): array
 {
-  $roots = [];
-  foreach ([sprite_custom_primary_root_path(), sprite_custom_legacy_root_path()] as $root) {
-    $trimmed = rtrim($root, DIRECTORY_SEPARATOR);
-    if ($trimmed === '' || in_array($trimmed, $roots, true)) {
-      continue;
-    }
-    $roots[] = $trimmed;
-  }
-  return $roots;
+  return [rtrim(sprite_custom_primary_root_path(), DIRECTORY_SEPARATOR)];
 }
 
 /**
@@ -403,20 +408,17 @@ function sprite_normalize_id(string $value): ?string
 function ensure_sprite_custom_root(): bool
 {
   $root = sprite_custom_primary_root_path();
-  if (!is_dir($root) && !(mkdir($root, 0700, true) || is_dir($root))) {
+  if (!is_dir($root) && !(mkdir($root, 0775, true) || is_dir($root))) {
     return false;
   }
-  @chmod($root, 0700);
+  @chmod($root, 0775);
 
   foreach (sprite_allowed_categories() as $category) {
     $dir = $root . DIRECTORY_SEPARATOR . $category;
-    if (is_dir($dir)) {
-      continue;
-    }
-    if (!(mkdir($dir, 0700, true) || is_dir($dir))) {
+    if (!is_dir($dir) && !(mkdir($dir, 0775, true) || is_dir($dir))) {
       return false;
     }
-    @chmod($dir, 0700);
+    @chmod($dir, 0775);
   }
 
   return true;
@@ -497,7 +499,7 @@ function persist_sprite_metadata(array $meta): bool
   $file = sprite_metadata_file_path();
   $written = file_put_contents($file, $json . PHP_EOL, LOCK_EX) !== false;
   if ($written) {
-    @chmod($file, 0600);
+    @chmod($file, 0664);
   }
   return $written;
 }
@@ -527,6 +529,7 @@ function sprite_normalize_scale_percent(mixed $value): ?int
  */
 function list_custom_sprite_overrides(): array
 {
+  ensure_sprite_custom_root();
   $roots = sprite_custom_roots_for_lookup();
   $allowedExts = sprite_allowed_file_exts();
   $meta = load_sprite_metadata();
@@ -558,6 +561,12 @@ function list_custom_sprite_overrides(): array
         }
         $fullPath = $dir . DIRECTORY_SEPARATOR . $name;
         if (!is_file($fullPath)) {
+          continue;
+        }
+        if (!is_readable($fullPath)) {
+          @chmod($fullPath, 0644);
+        }
+        if (!is_readable($fullPath)) {
           continue;
         }
         $ext = strtolower((string) pathinfo($name, PATHINFO_EXTENSION));
@@ -615,9 +624,47 @@ function sprite_upload_error_message(int $errorCode): string
 /**
  * Detect MIME type for uploaded image data without hard dependency on ext-fileinfo.
  */
+function normalize_sprite_mime(string $mime): ?string
+{
+  $normalized = strtolower(trim($mime));
+  if ($normalized === 'image/jpg' || $normalized === 'image/pjpeg') {
+    $normalized = 'image/jpeg';
+  }
+  $supported = sprite_allowed_mime_to_ext();
+  return isset($supported[$normalized]) ? $normalized : null;
+}
+
+function detect_sprite_mime_from_signature(string $path): ?string
+{
+  $fh = @fopen($path, 'rb');
+  if ($fh === false) {
+    return null;
+  }
+  $head = @fread($fh, 16);
+  @fclose($fh);
+  if (!is_string($head) || $head === '') {
+    return null;
+  }
+
+  if (strlen($head) >= 8 && substr($head, 0, 8) === "\x89PNG\x0D\x0A\x1A\x0A") {
+    return 'image/png';
+  }
+  if (strlen($head) >= 3 && substr($head, 0, 3) === "\xFF\xD8\xFF") {
+    return 'image/jpeg';
+  }
+  if (strlen($head) >= 12 && substr($head, 0, 4) === 'RIFF' && substr($head, 8, 4) === 'WEBP') {
+    return 'image/webp';
+  }
+
+  return null;
+}
+
 function detect_uploaded_sprite_mime(string $tmpPath, string $originalName = ''): ?string
 {
-  $mime = null;
+  $mime = detect_sprite_mime_from_signature($tmpPath);
+  if ($mime !== null) {
+    return $mime;
+  }
 
   if (function_exists('finfo_open') && defined('FILEINFO_MIME_TYPE')) {
     $finfo = @finfo_open(FILEINFO_MIME_TYPE);
@@ -625,34 +672,44 @@ function detect_uploaded_sprite_mime(string $tmpPath, string $originalName = '')
       $detected = @finfo_file($finfo, $tmpPath);
       @finfo_close($finfo);
       if (is_string($detected) && trim($detected) !== '') {
-        $mime = strtolower(trim($detected));
+        $normalized = normalize_sprite_mime($detected);
+        if ($normalized !== null) {
+          return $normalized;
+        }
       }
     }
   }
 
-  if ($mime === null && function_exists('mime_content_type')) {
+  if (function_exists('mime_content_type')) {
     $detected = @mime_content_type($tmpPath);
     if (is_string($detected) && trim($detected) !== '') {
-      $mime = strtolower(trim($detected));
+      $normalized = normalize_sprite_mime($detected);
+      if ($normalized !== null) {
+        return $normalized;
+      }
     }
   }
 
   // Validate image payload by content where possible.
-  if ($mime === null && function_exists('getimagesize')) {
+  if (function_exists('getimagesize')) {
     $imgInfo = @getimagesize($tmpPath);
     if (is_array($imgInfo) && isset($imgInfo['mime']) && is_string($imgInfo['mime'])) {
-      $mime = strtolower(trim($imgInfo['mime']));
+      $normalized = normalize_sprite_mime($imgInfo['mime']);
+      if ($normalized !== null) {
+        return $normalized;
+      }
     }
   }
 
-  if ($mime === null && $originalName !== '') {
+  if ($originalName !== '') {
     $ext = strtolower((string) pathinfo($originalName, PATHINFO_EXTENSION));
-    if ($ext === 'png') return 'image/png';
-    if ($ext === 'jpg' || $ext === 'jpeg') return 'image/jpeg';
-    if ($ext === 'webp') return 'image/webp';
+    $extMap = sprite_allowed_ext_to_mime();
+    if (isset($extMap[$ext])) {
+      return $extMap[$ext];
+    }
   }
 
-  return $mime;
+  return null;
 }
 
 /**
@@ -690,7 +747,7 @@ function sprite_resolve_custom_file_path(string $category, string $fileName): ?s
   foreach (sprite_custom_roots_for_lookup() as $root) {
     foreach ($nameCandidates as $name) {
       $candidate = $root . DIRECTORY_SEPARATOR . $safeCategory . DIRECTORY_SEPARATOR . $name;
-      if (is_file($candidate)) {
+      if (is_file($candidate) && is_readable($candidate)) {
         return $candidate;
       }
     }
@@ -1116,14 +1173,17 @@ if ($apiMode === 'sprite_asset') {
     echo 'Sprite not found.';
     exit;
   }
+  if (!is_file($path) || !is_readable($path)) {
+    app_apply_baseline_security_headers();
+    http_response_code(404);
+    header('Content-Type: text/plain; charset=UTF-8');
+    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+    echo 'Sprite not found.';
+    exit;
+  }
 
   $ext = strtolower((string) pathinfo($path, PATHINFO_EXTENSION));
-  $mimeMap = [
-    'png' => 'image/png',
-    'jpg' => 'image/jpeg',
-    'jpeg' => 'image/jpeg',
-    'webp' => 'image/webp',
-  ];
+  $mimeMap = sprite_allowed_ext_to_mime();
   $mime = $mimeMap[$ext] ?? 'application/octet-stream';
   $mtime = (int) (@filemtime($path) ?: time());
   $size = (int) (@filesize($path) ?: 0);
@@ -1288,7 +1348,7 @@ if ($apiMode === 'sprites') {
   if (!move_uploaded_file($tmpPath, $targetPath)) {
     json_response(['ok' => false, 'error' => 'Failed to store uploaded sprite.'], 500);
   }
-  @chmod($targetPath, 0600);
+  @chmod($targetPath, 0644);
   $mtime = (int) (@filemtime($targetPath) ?: time());
   $publicUrl = sprite_custom_asset_url($category, $targetName, $mtime);
 
@@ -2218,6 +2278,30 @@ if (!is_string($spriteOverridesJson)) {
         column-gap: 10px;
         align-items: start;
       }
+      .charChoiceCard.speciesChoiceCard {
+        display: grid;
+        grid-template-columns: 72px minmax(0, 1fr);
+        column-gap: 10px;
+        align-items: start;
+      }
+      .speciesChoiceCard .charChoiceVisual {
+        width: 72px;
+        min-height: 72px;
+        margin-bottom: 0;
+        align-items: flex-start;
+        justify-content: center;
+      }
+      .speciesChoiceCard .charChoiceMeta {
+        min-width: 0;
+      }
+      .speciesChoiceCard .charChoiceSprite,
+      .speciesChoiceCard .charChoiceSpriteFallback {
+        width: 72px;
+        height: 72px;
+      }
+      .speciesChoiceCard .charChoiceSpriteFallback {
+        font-size: 30px;
+      }
       .classChoiceCard .charChoiceVisual {
         width: 92px;
         min-height: 92px;
@@ -2267,6 +2351,11 @@ if (!is_string($spriteOverridesJson)) {
         font-size: 12px;
         color: #c6d5ef;
         margin-top: 4px;
+      }
+      .charChoiceSubtle {
+        margin-top: 2px;
+        font-size: 11px;
+        color: #9fb6da;
       }
       .charBuffList {
         margin: 8px 0 0 0;
@@ -2398,6 +2487,22 @@ if (!is_string($spriteOverridesJson)) {
         .charChoiceCard.classChoiceCard {
           grid-template-columns: 74px minmax(0, 1fr);
           column-gap: 8px;
+        }
+        .charChoiceCard.speciesChoiceCard {
+          grid-template-columns: 64px minmax(0, 1fr);
+          column-gap: 8px;
+        }
+        .speciesChoiceCard .charChoiceVisual {
+          width: 64px;
+          min-height: 64px;
+        }
+        .speciesChoiceCard .charChoiceSprite,
+        .speciesChoiceCard .charChoiceSpriteFallback {
+          width: 64px;
+          height: 64px;
+        }
+        .speciesChoiceCard .charChoiceSpriteFallback {
+          font-size: 26px;
         }
         .classChoiceCard .charChoiceVisual {
           width: 74px;

@@ -178,7 +178,7 @@ const OUT_OF_COMBAT_HP_BAR_HEIGHT_FRAC = 0.125;
 const COMBAT_HP_BAR_NEARBY_EXTRA_GAP_FRAC = 0.2;
 const PLAYER_COMBAT_HP_BAR_EXTRA_LIFT_FRAC = 0.07;
 const DEFAULT_CHARACTER_NAME = "Adventurer";
-const DEFAULT_CHARACTER_CLASS_ID = "fighter";
+const DEFAULT_CHARACTER_CLASS_ID = "vanguard";
 const DEFAULT_CHARACTER_SPECIES_ID = "human";
 const CHARACTER_STAT_KEYS = ["vit", "str", "dex", "int", "agi"];
 const CHARACTER_CREATION_BASE_POINTS = 10;
@@ -202,8 +202,9 @@ const SPECIES_DEFS = {
   human: {
     id: "human",
     name: "Human",
-    blurb: "Adaptable baseline with one extra creation point.",
+    blurb: "Humans were not built for the dungeon; they adapted through flexibility, stubbornness, and invention.",
     extraCreationPoints: 1,
+    defaultClassId: "vanguard",
     hpMult: 1,
     armorEffect: 1,
     accFlat: 0,
@@ -211,64 +212,16 @@ const SPECIES_DEFS = {
     speedMult: 1,
     lowHpDamageMult: 1,
     healMult: 1,
-  },
-  dwarf: {
-    id: "dwarf",
-    name: "Dwarf",
-    blurb: "Built to endure: bigger HP pool and sturdier armor scaling.",
-    extraCreationPoints: 0,
-    hpMult: 1.1,
-    armorEffect: 1.1,
-    accFlat: 0,
-    evaFlat: 0,
-    speedMult: 1,
-    lowHpDamageMult: 1,
-    healMult: 1,
-  },
-  elf: {
-    id: "elf",
-    name: "Elf",
-    blurb: "Precision specialist with stronger accuracy and evasion.",
-    extraCreationPoints: 0,
-    hpMult: 1,
-    armorEffect: 1,
-    accFlat: 8,
-    evaFlat: 6,
-    speedMult: 1,
-    lowHpDamageMult: 1,
-    healMult: 1,
-  },
-  orc: {
-    id: "orc",
-    name: "Orc",
-    blurb: "Thrives in danger with a low-HP damage surge.",
-    extraCreationPoints: 0,
-    hpMult: 1,
-    armorEffect: 1,
-    accFlat: 0,
-    evaFlat: 0,
-    speedMult: 1,
-    lowHpDamageMult: 1.08,
-    healMult: 1,
-  },
-  ratkin: {
-    id: "ratkin",
-    name: "Skulkers",
-    blurb: "Fast and evasive skirmisher profile.",
-    extraCreationPoints: 0,
-    hpMult: 1,
-    armorEffect: 1,
-    accFlat: 0,
-    evaFlat: 8,
-    speedMult: 1.05,
-    lowHpDamageMult: 1,
-    healMult: 1,
+    xpGainMult: 1.05,
+    energyFlat: 0,
+    buffLines: ["+1 creation stat point", "+5% XP gain", "No penalties"],
   },
   automaton: {
     id: "automaton",
     name: "Automaton",
-    blurb: "Reinforced frame: stronger armor, weaker incoming healing.",
+    blurb: "Ancient mechanical intelligences built for labor and war, enduring extreme punishment but recovering poorly.",
     extraCreationPoints: 0,
+    defaultClassId: "sentinel",
     hpMult: 1,
     armorEffect: 1.12,
     accFlat: 0,
@@ -276,16 +229,89 @@ const SPECIES_DEFS = {
     speedMult: 1,
     lowHpDamageMult: 1,
     healMult: 0.9,
+    xpGainMult: 1,
+    energyFlat: 0,
+    buffLines: ["+12% armor effectiveness", "-10% healing received", "Immune to poison"],
+  },
+  hollowed: {
+    id: "hollowed",
+    name: "Hollowed",
+    blurb: "Survivors touched by deep anomalies, lighter and evasive, moving like they are slightly out of phase.",
+    extraCreationPoints: 0,
+    defaultClassId: "veilblade",
+    hpMult: 0.9,
+    armorEffect: 1,
+    accFlat: 0,
+    evaFlat: 10,
+    speedMult: 1,
+    lowHpDamageMult: 1,
+    healMult: 1,
+    xpGainMult: 1,
+    energyFlat: 0,
+    buffLines: ["+10 EVA", "-10% Max HP", "Immune to fear"],
+  },
+  skulker: {
+    id: "skulker",
+    name: "Skulker",
+    blurb: "Tunnel-adapted mutants with elite reflexes and spatial awareness, thriving in cramped corridors.",
+    extraCreationPoints: 0,
+    defaultClassId: "tunnel_striker",
+    hpMult: 1,
+    armorEffect: 1,
+    accFlat: 0,
+    evaFlat: 8,
+    speedMult: 1.05,
+    lowHpDamageMult: 1,
+    healMult: 1,
+    xpGainMult: 1,
+    energyFlat: 0,
+    buffLines: ["+8 EVA", "+5% speed", "+10% trap detection radius"],
+  },
+  grey: {
+    id: "grey",
+    name: "Grey",
+    blurb: "Extraterrestrial observers: cerebral, precise, and detached, studying the dungeon as a phenomenon.",
+    extraCreationPoints: 0,
+    defaultClassId: "psion",
+    hpMult: 0.92,
+    armorEffect: 1,
+    accFlat: 10,
+    evaFlat: 0,
+    speedMult: 1,
+    lowHpDamageMult: 1,
+    healMult: 1,
+    xpGainMult: 1,
+    energyFlat: 20,
+    buffLines: ["+20 energy", "+10 ACC", "-8% Max HP"],
+  },
+  insectoid: {
+    id: "insectoid",
+    name: "Insectoid",
+    blurb: "Hive-born predators with relentless tempo and hardened chitin, fighting by instinct and coordination.",
+    extraCreationPoints: 0,
+    defaultClassId: "hive_warrior",
+    hpMult: 1,
+    armorEffect: 1.1,
+    accFlat: 0,
+    evaFlat: 0,
+    speedMult: 1.06,
+    lowHpDamageMult: 1,
+    healMult: 1,
+    xpGainMult: 1,
+    energyFlat: 0,
+    buffLines: ["+10% armor effectiveness", "+6% speed", "-10% fire resistance"],
   },
 };
 const CLASS_DEFS = {
-  fighter: {
-    id: "fighter",
-    name: "Fighter",
-    blurb: "Direct weapon specialist with higher weapon damage throughput.",
+  // Human classes
+  vanguard: {
+    id: "vanguard",
+    speciesId: "human",
+    name: "Vanguard",
+    blurb: "Frontline pressure fighter who thrives in sustained melee.",
     hpMult: 1,
-    armorEffect: 1,
-    weaponDamageMult: 1.1,
+    armorEffect: 1.08,
+    weaponDamageMult: 1.12,
     damageMult: 1,
     accFlat: 0,
     evaFlat: 0,
@@ -295,13 +321,21 @@ const CLASS_DEFS = {
     rangedDefIgnorePct: 0,
     healMult: 1,
     potionCapBonus: 0,
+    energyFlat: 0,
+    energyMult: 1,
+    xpGainMult: 1,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0,
+    buffLines: ["+12% weapon damage", "+8% armor effectiveness"],
   },
-  guardian: {
-    id: "guardian",
-    name: "Guardian",
-    blurb: "Tank frame with extra HP and improved armor conversion.",
-    hpMult: 1.15,
-    armorEffect: 1.1,
+  bulwark: {
+    id: "bulwark",
+    speciesId: "human",
+    name: "Bulwark",
+    blurb: "Heavy defensive specialist.",
+    hpMult: 1.2,
+    armorEffect: 1,
     weaponDamageMult: 1,
     damageMult: 1,
     accFlat: 0,
@@ -312,11 +346,19 @@ const CLASS_DEFS = {
     rangedDefIgnorePct: 0,
     healMult: 1,
     potionCapBonus: 0,
+    energyFlat: 0,
+    energyMult: 1,
+    xpGainMult: 1,
+    incomingDamageFlatLegacy: 3,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0,
+    buffLines: ["+20% Max HP", "Incoming damage reduced by flat 3"],
   },
   rogue: {
     id: "rogue",
+    speciesId: "human",
     name: "Rogue",
-    blurb: "Evasion-heavy class with boosted critical potential.",
+    blurb: "Precision assassin.",
     hpMult: 1,
     armorEffect: 1,
     weaponDamageMult: 1,
@@ -329,11 +371,19 @@ const CLASS_DEFS = {
     rangedDefIgnorePct: 0,
     healMult: 1,
     potionCapBonus: 0,
+    energyFlat: 0,
+    energyMult: 1,
+    xpGainMult: 1,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0,
+    buffLines: ["+10 EVA", "+5% crit chance"],
   },
   ranger: {
     id: "ranger",
+    speciesId: "human",
     name: "Ranger",
-    blurb: "High-precision class tuned for reliable hit rates.",
+    blurb: "Reliable ranged damage dealer.",
     hpMult: 1,
     armorEffect: 1,
     weaponDamageMult: 1,
@@ -343,31 +393,47 @@ const CLASS_DEFS = {
     speedMult: 1,
     critFlat: 0,
     firstStrikeMoveMult: 1,
-    rangedDefIgnorePct: 0.1,
+    rangedDefIgnorePct: 0.15,
     healMult: 1,
     potionCapBonus: 0,
+    energyFlat: 0,
+    energyMult: 1,
+    xpGainMult: 1,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0,
+    buffLines: ["+10 ACC", "Ranged hits ignore 15% DEF"],
   },
-  skirmisher: {
-    id: "skirmisher",
-    name: "Skirmisher",
-    blurb: "Mobile striker with speed scaling and a move-attack spike.",
+  operative: {
+    id: "operative",
+    speciesId: "human",
+    name: "Operative",
+    blurb: "Mobile hit-and-run specialist.",
     hpMult: 1,
     armorEffect: 1,
     weaponDamageMult: 1,
     damageMult: 1,
     accFlat: 0,
     evaFlat: 0,
-    speedMult: 1.06,
+    speedMult: 1.08,
     critFlat: 0,
-    firstStrikeMoveMult: 1.1,
+    firstStrikeMoveMult: 1.15,
     rangedDefIgnorePct: 0,
     healMult: 1,
     potionCapBonus: 0,
+    energyFlat: 0,
+    energyMult: 1,
+    xpGainMult: 1,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0,
+    buffLines: ["+8% speed", "First attack after moving: +15% damage"],
   },
   alchemist: {
     id: "alchemist",
+    speciesId: "human",
     name: "Alchemist",
-    blurb: "Sustain-focused class with stronger healing and extra potion capacity.",
+    blurb: "Resource survivalist.",
     hpMult: 1,
     armorEffect: 1,
     weaponDamageMult: 1,
@@ -380,8 +446,789 @@ const CLASS_DEFS = {
     rangedDefIgnorePct: 0,
     healMult: 1.2,
     potionCapBonus: 1,
+    energyFlat: 0,
+    energyMult: 1,
+    xpGainMult: 1,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0,
+    buffLines: ["+20% healing item value", "+1 potion capacity"],
+  },
+
+  // Automaton classes
+  sentinel: {
+    id: "sentinel",
+    speciesId: "automaton",
+    name: "Sentinel",
+    blurb: "Defensive stabilizer unit.",
+    hpMult: 1.15,
+    armorEffect: 1.05,
+    weaponDamageMult: 1,
+    damageMult: 1,
+    accFlat: 0,
+    evaFlat: 0,
+    speedMult: 1,
+    critFlat: 0,
+    firstStrikeMoveMult: 1,
+    rangedDefIgnorePct: 0,
+    healMult: 1,
+    potionCapBonus: 0,
+    energyFlat: 0,
+    energyMult: 1,
+    xpGainMult: 1,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0,
+    buffLines: ["+15% Max HP", "+5% armor effectiveness"],
+  },
+  execution_frame: {
+    id: "execution_frame",
+    speciesId: "automaton",
+    name: "Execution Frame",
+    blurb: "Heavy assault chassis.",
+    hpMult: 1,
+    armorEffect: 1,
+    weaponDamageMult: 1.15,
+    damageMult: 1,
+    accFlat: 0,
+    evaFlat: 0,
+    speedMult: 0.97,
+    critFlat: 0,
+    firstStrikeMoveMult: 1,
+    rangedDefIgnorePct: 0,
+    healMult: 1,
+    potionCapBonus: 0,
+    energyFlat: 0,
+    energyMult: 1,
+    xpGainMult: 1,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0,
+    buffLines: ["+15% weapon damage", "-3% speed"],
+  },
+  calibrator: {
+    id: "calibrator",
+    speciesId: "automaton",
+    name: "Calibrator",
+    blurb: "Precision targeting unit.",
+    hpMult: 1,
+    armorEffect: 1,
+    weaponDamageMult: 1,
+    damageMult: 1,
+    accFlat: 12,
+    evaFlat: 0,
+    speedMult: 1,
+    critFlat: 5,
+    firstStrikeMoveMult: 1,
+    rangedDefIgnorePct: 0,
+    healMult: 1,
+    potionCapBonus: 0,
+    energyFlat: 0,
+    energyMult: 1,
+    xpGainMult: 1,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0,
+    buffLines: ["+12 ACC", "+5% crit chance"],
+  },
+  overclock_unit: {
+    id: "overclock_unit",
+    speciesId: "automaton",
+    name: "Overclock Unit",
+    blurb: "Short-burst performance mode.",
+    hpMult: 1,
+    armorEffect: 1,
+    weaponDamageMult: 1,
+    damageMult: 1,
+    accFlat: 0,
+    evaFlat: 0,
+    speedMult: 1.12,
+    critFlat: 0,
+    firstStrikeMoveMult: 1,
+    rangedDefIgnorePct: 0,
+    healMult: 1,
+    potionCapBonus: 0,
+    energyFlat: 0,
+    energyMult: 1,
+    xpGainMult: 1,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0,
+    buffLines: ["+12% speed", "After taking damage: +10% damage for 3s"],
+  },
+  fabricator: {
+    id: "fabricator",
+    speciesId: "automaton",
+    name: "Fabricator",
+    blurb: "Adaptive field engineer.",
+    hpMult: 1,
+    armorEffect: 1,
+    weaponDamageMult: 1,
+    damageMult: 1,
+    accFlat: 0,
+    evaFlat: 0,
+    speedMult: 1,
+    critFlat: 0,
+    firstStrikeMoveMult: 1,
+    rangedDefIgnorePct: 0,
+    healMult: 1.25,
+    potionCapBonus: 1,
+    energyFlat: 0,
+    energyMult: 1,
+    xpGainMult: 1,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0,
+    buffLines: ["Repair kits heal 25% more", "+1 consumable slot"],
+  },
+  nullblade: {
+    id: "nullblade",
+    speciesId: "automaton",
+    name: "Nullblade",
+    blurb: "Anti-void combat frame.",
+    hpMult: 1,
+    armorEffect: 1,
+    weaponDamageMult: 1,
+    damageMult: 1,
+    accFlat: 0,
+    evaFlat: 0,
+    speedMult: 1,
+    critFlat: 0,
+    firstStrikeMoveMult: 1,
+    rangedDefIgnorePct: 0,
+    healMult: 1,
+    potionCapBonus: 0,
+    energyFlat: 0,
+    energyMult: 1.08,
+    xpGainMult: 1,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0,
+    buffLines: ["+10% damage vs Hollowed/void enemies", "+8% energy capacity"],
+  },
+
+  // Hollowed classes
+  veilblade: {
+    id: "veilblade",
+    speciesId: "hollowed",
+    name: "Veilblade",
+    blurb: "Phase-shifting striker.",
+    hpMult: 1,
+    armorEffect: 1,
+    weaponDamageMult: 1,
+    damageMult: 1,
+    accFlat: 0,
+    evaFlat: 0,
+    speedMult: 1.08,
+    critFlat: 0,
+    firstStrikeMoveMult: 1,
+    rangedDefIgnorePct: 0,
+    healMult: 1,
+    potionCapBonus: 0,
+    energyFlat: 0,
+    energyMult: 1,
+    xpGainMult: 1,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0,
+    buffLines: ["First attack each combat ignores 25% DEF", "+8% speed"],
+  },
+  shadeguard: {
+    id: "shadeguard",
+    speciesId: "hollowed",
+    name: "Shadeguard",
+    blurb: "Void-touched defender.",
+    hpMult: 1.1,
+    armorEffect: 1.06,
+    weaponDamageMult: 1,
+    damageMult: 1,
+    accFlat: 0,
+    evaFlat: 0,
+    speedMult: 1,
+    critFlat: 0,
+    firstStrikeMoveMult: 1,
+    rangedDefIgnorePct: 0,
+    healMult: 1,
+    potionCapBonus: 0,
+    energyFlat: 0,
+    energyMult: 1,
+    xpGainMult: 1,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0,
+    buffLines: ["15% chance to reduce incoming damage by 30%", "+10% Max HP"],
+  },
+  riftstalker: {
+    id: "riftstalker",
+    speciesId: "hollowed",
+    name: "Riftstalker",
+    blurb: "Ambush specialist.",
+    hpMult: 1,
+    armorEffect: 1,
+    weaponDamageMult: 1,
+    damageMult: 1,
+    accFlat: 0,
+    evaFlat: 6,
+    speedMult: 1,
+    critFlat: 0,
+    firstStrikeMoveMult: 1,
+    rangedDefIgnorePct: 0,
+    healMult: 1,
+    potionCapBonus: 0,
+    energyFlat: 0,
+    energyMult: 1,
+    xpGainMult: 1,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0,
+    buffLines: ["+15% damage when attacking unengaged targets", "+6 EVA"],
+  },
+  echo_sniper: {
+    id: "echo_sniper",
+    speciesId: "hollowed",
+    name: "Echo Sniper",
+    blurb: "Precision anomaly marksman.",
+    hpMult: 1,
+    armorEffect: 1,
+    weaponDamageMult: 1,
+    damageMult: 1,
+    accFlat: 14,
+    evaFlat: 0,
+    speedMult: 1,
+    critFlat: 0,
+    firstStrikeMoveMult: 1,
+    rangedDefIgnorePct: 0,
+    healMult: 1,
+    potionCapBonus: 0,
+    energyFlat: 0,
+    energyMult: 1,
+    xpGainMult: 1,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.65,
+    critDefIgnorePct: 0,
+    buffLines: ["+14 ACC", "+10% crit damage"],
+  },
+  void_savant: {
+    id: "void_savant",
+    speciesId: "hollowed",
+    name: "Void Savant",
+    blurb: "Anomaly channeler.",
+    hpMult: 1,
+    armorEffect: 1,
+    weaponDamageMult: 1,
+    damageMult: 1,
+    accFlat: 0,
+    evaFlat: 0,
+    speedMult: 1,
+    critFlat: 0,
+    firstStrikeMoveMult: 1,
+    rangedDefIgnorePct: 0,
+    healMult: 1,
+    potionCapBonus: 0,
+    energyFlat: 25,
+    energyMult: 1,
+    xpGainMult: 1,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0,
+    buffLines: ["+25 energy", "Abilities cost -10%"],
+  },
+  warden_gap: {
+    id: "warden_gap",
+    speciesId: "hollowed",
+    name: "Warden of the Gap",
+    blurb: "Disruption specialist.",
+    hpMult: 1,
+    armorEffect: 1.08,
+    weaponDamageMult: 1,
+    damageMult: 1,
+    accFlat: 0,
+    evaFlat: 0,
+    speedMult: 1,
+    critFlat: 0,
+    firstStrikeMoveMult: 1,
+    rangedDefIgnorePct: 0,
+    healMult: 1,
+    potionCapBonus: 0,
+    energyFlat: 0,
+    energyMult: 1,
+    xpGainMult: 1,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0,
+    buffLines: ["Enemies within 2 tiles lose 5 ACC", "+8% armor effectiveness"],
+  },
+
+  // Skulker classes
+  tunnel_striker: {
+    id: "tunnel_striker",
+    speciesId: "skulker",
+    name: "Tunnel Striker",
+    blurb: "Close-quarters specialist.",
+    hpMult: 1,
+    armorEffect: 1,
+    weaponDamageMult: 1,
+    damageMult: 1,
+    accFlat: 0,
+    evaFlat: 6,
+    speedMult: 1,
+    critFlat: 0,
+    firstStrikeMoveMult: 1,
+    rangedDefIgnorePct: 0,
+    healMult: 1,
+    potionCapBonus: 0,
+    energyFlat: 0,
+    energyMult: 1,
+    xpGainMult: 1,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0,
+    buffLines: ["+15% damage in melee range 1", "+6 EVA"],
+  },
+  slipblade: {
+    id: "slipblade",
+    speciesId: "skulker",
+    name: "Slipblade",
+    blurb: "Extreme mobility duelist.",
+    hpMult: 1,
+    armorEffect: 1,
+    weaponDamageMult: 1,
+    damageMult: 1,
+    accFlat: 0,
+    evaFlat: 0,
+    speedMult: 1.12,
+    critFlat: 0,
+    firstStrikeMoveMult: 1,
+    rangedDefIgnorePct: 0,
+    healMult: 1,
+    potionCapBonus: 0,
+    energyFlat: 0,
+    energyMult: 1,
+    xpGainMult: 1,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0,
+    buffLines: ["+12% speed", "After dodging: next attack +10% damage"],
+  },
+  burrowguard: {
+    id: "burrowguard",
+    speciesId: "skulker",
+    name: "Burrowguard",
+    blurb: "Compact defender.",
+    hpMult: 1.12,
+    armorEffect: 1,
+    weaponDamageMult: 1,
+    damageMult: 1,
+    accFlat: 0,
+    evaFlat: 0,
+    speedMult: 1,
+    critFlat: 0,
+    firstStrikeMoveMult: 1,
+    rangedDefIgnorePct: 0,
+    healMult: 1,
+    potionCapBonus: 0,
+    energyFlat: 0,
+    energyMult: 1,
+    xpGainMult: 1,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0,
+    buffLines: ["+12% Max HP", "Reduced knockback"],
+  },
+  shadowrunner: {
+    id: "shadowrunner",
+    speciesId: "skulker",
+    name: "Shadowrunner",
+    blurb: "Scout-class striker.",
+    hpMult: 1,
+    armorEffect: 1,
+    weaponDamageMult: 1,
+    damageMult: 1,
+    accFlat: 8,
+    evaFlat: 0,
+    speedMult: 1,
+    critFlat: 5,
+    firstStrikeMoveMult: 1,
+    rangedDefIgnorePct: 0,
+    healMult: 1,
+    potionCapBonus: 0,
+    energyFlat: 0,
+    energyMult: 1,
+    xpGainMult: 1,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0,
+    buffLines: ["+8 ACC", "+5% crit chance"],
+  },
+  scrapper: {
+    id: "scrapper",
+    speciesId: "skulker",
+    name: "Scrapper",
+    blurb: "Improvised weapon specialist.",
+    hpMult: 1,
+    armorEffect: 1,
+    weaponDamageMult: 1,
+    damageMult: 1,
+    accFlat: 0,
+    evaFlat: 0,
+    speedMult: 1,
+    critFlat: 0,
+    firstStrikeMoveMult: 1,
+    rangedDefIgnorePct: 0,
+    healMult: 1,
+    potionCapBonus: 0,
+    energyFlat: 0,
+    energyMult: 1,
+    xpGainMult: 1,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0,
+    buffLines: ["+10% damage with low-tier weapons", "+1 salvage chance"],
+  },
+  trapwright: {
+    id: "trapwright",
+    speciesId: "skulker",
+    name: "Trapwright",
+    blurb: "Hazard manipulator.",
+    hpMult: 1,
+    armorEffect: 1.05,
+    weaponDamageMult: 1,
+    damageMult: 1.04,
+    accFlat: 0,
+    evaFlat: 0,
+    speedMult: 1,
+    critFlat: 0,
+    firstStrikeMoveMult: 1,
+    rangedDefIgnorePct: 0,
+    healMult: 1,
+    potionCapBonus: 0,
+    energyFlat: 0,
+    energyMult: 1,
+    xpGainMult: 1,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0,
+    buffLines: ["Traps deal 20% more damage", "Immune to own traps"],
+  },
+
+  // Grey classes
+  psion: {
+    id: "psion",
+    speciesId: "grey",
+    name: "Psion",
+    blurb: "Mind-damage specialist.",
+    hpMult: 1,
+    armorEffect: 1,
+    weaponDamageMult: 1,
+    damageMult: 1.15,
+    accFlat: 0,
+    evaFlat: 0,
+    speedMult: 1,
+    critFlat: 0,
+    firstStrikeMoveMult: 1,
+    rangedDefIgnorePct: 0,
+    healMult: 1,
+    potionCapBonus: 0,
+    energyFlat: 15,
+    energyMult: 1,
+    xpGainMult: 1,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0,
+    buffLines: ["Abilities deal +15% damage", "+15 energy"],
+  },
+  mindpiercer: {
+    id: "mindpiercer",
+    speciesId: "grey",
+    name: "Mindpiercer",
+    blurb: "Precision neural attacker.",
+    hpMult: 1,
+    armorEffect: 1,
+    weaponDamageMult: 1,
+    damageMult: 1,
+    accFlat: 0,
+    evaFlat: 0,
+    speedMult: 1,
+    critFlat: 5,
+    firstStrikeMoveMult: 1,
+    rangedDefIgnorePct: 0,
+    healMult: 1,
+    potionCapBonus: 0,
+    energyFlat: 0,
+    energyMult: 1,
+    xpGainMult: 1,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0.2,
+    buffLines: ["+5% crit chance", "Crits ignore 20% DEF"],
+  },
+  surveyor: {
+    id: "surveyor",
+    speciesId: "grey",
+    name: "Surveyor",
+    blurb: "Dungeon analyst.",
+    hpMult: 1,
+    armorEffect: 1,
+    weaponDamageMult: 1,
+    damageMult: 1,
+    accFlat: 12,
+    evaFlat: 0,
+    speedMult: 1,
+    critFlat: 0,
+    firstStrikeMoveMult: 1,
+    rangedDefIgnorePct: 0,
+    healMult: 1,
+    potionCapBonus: 0,
+    energyFlat: 0,
+    energyMult: 1,
+    xpGainMult: 1.04,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0,
+    buffLines: ["+12 ACC", "Increased rare loot chance (small %)"],
+  },
+  telekinetic: {
+    id: "telekinetic",
+    speciesId: "grey",
+    name: "Telekinetic",
+    blurb: "Force manipulator.",
+    hpMult: 1,
+    armorEffect: 1,
+    weaponDamageMult: 1,
+    damageMult: 1,
+    accFlat: 0,
+    evaFlat: 0,
+    speedMult: 1,
+    critFlat: 0,
+    firstStrikeMoveMult: 1.12,
+    rangedDefIgnorePct: 0,
+    healMult: 1,
+    potionCapBonus: 0,
+    energyFlat: 0,
+    energyMult: 1,
+    xpGainMult: 1,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0,
+    buffLines: ["First attack each combat knocks back target", "+10% ability range"],
+  },
+  neural_anchor: {
+    id: "neural_anchor",
+    speciesId: "grey",
+    name: "Neural Anchor",
+    blurb: "Stability field generator.",
+    hpMult: 1.1,
+    armorEffect: 1,
+    weaponDamageMult: 1,
+    damageMult: 1,
+    accFlat: 5,
+    evaFlat: 0,
+    speedMult: 1,
+    critFlat: 0,
+    firstStrikeMoveMult: 1,
+    rangedDefIgnorePct: 0,
+    healMult: 1,
+    potionCapBonus: 0,
+    energyFlat: 0,
+    energyMult: 1,
+    xpGainMult: 1,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0,
+    buffLines: ["Allies gain +5 ACC", "+10% Max HP"],
+  },
+  observer_prime: {
+    id: "observer_prime",
+    speciesId: "grey",
+    name: "Observer Prime",
+    blurb: "Long-run strategist.",
+    hpMult: 1,
+    armorEffect: 1,
+    weaponDamageMult: 1,
+    damageMult: 1,
+    accFlat: 0,
+    evaFlat: 0,
+    speedMult: 1,
+    critFlat: 0,
+    firstStrikeMoveMult: 1,
+    rangedDefIgnorePct: 0,
+    healMult: 1,
+    potionCapBonus: 0,
+    energyFlat: 0,
+    energyMult: 1,
+    xpGainMult: 1.08,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0,
+    buffLines: ["+8% XP gain", "Every 5 floors: minor random stat buff"],
+  },
+
+  // Insectoid classes
+  hive_warrior: {
+    id: "hive_warrior",
+    speciesId: "insectoid",
+    name: "Hive Warrior",
+    blurb: "Frontline swarm unit.",
+    hpMult: 1.1,
+    armorEffect: 1,
+    weaponDamageMult: 1.12,
+    damageMult: 1,
+    accFlat: 0,
+    evaFlat: 0,
+    speedMult: 1,
+    critFlat: 0,
+    firstStrikeMoveMult: 1,
+    rangedDefIgnorePct: 0,
+    healMult: 1,
+    potionCapBonus: 0,
+    energyFlat: 0,
+    energyMult: 1,
+    xpGainMult: 1,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0,
+    buffLines: ["+12% weapon damage", "+10% Max HP"],
+  },
+  spitter: {
+    id: "spitter",
+    speciesId: "insectoid",
+    name: "Spitter",
+    blurb: "Ranged toxin specialist.",
+    hpMult: 1,
+    armorEffect: 1,
+    weaponDamageMult: 1,
+    damageMult: 1,
+    accFlat: 10,
+    evaFlat: 0,
+    speedMult: 1,
+    critFlat: 0,
+    firstStrikeMoveMult: 1,
+    rangedDefIgnorePct: 0.1,
+    healMult: 1,
+    potionCapBonus: 0,
+    energyFlat: 0,
+    energyMult: 1,
+    xpGainMult: 1,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0,
+    buffLines: ["Ranged attacks apply minor poison", "+10 ACC"],
+  },
+  chitin_guard: {
+    id: "chitin_guard",
+    speciesId: "insectoid",
+    name: "Chitin Guard",
+    blurb: "Exoskeletal tank.",
+    hpMult: 1,
+    armorEffect: 1.18,
+    weaponDamageMult: 1,
+    damageMult: 1,
+    accFlat: 0,
+    evaFlat: 0,
+    speedMult: 0.96,
+    critFlat: 0,
+    firstStrikeMoveMult: 1,
+    rangedDefIgnorePct: 0,
+    healMult: 1,
+    potionCapBonus: 0,
+    energyFlat: 0,
+    energyMult: 1,
+    xpGainMult: 1,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0,
+    buffLines: ["+18% armor effectiveness", "-4% speed"],
+  },
+  skydarter: {
+    id: "skydarter",
+    speciesId: "insectoid",
+    name: "Skydarter",
+    blurb: "Extreme mobility striker.",
+    hpMult: 1,
+    armorEffect: 1,
+    weaponDamageMult: 1,
+    damageMult: 1,
+    accFlat: 0,
+    evaFlat: 0,
+    speedMult: 1.14,
+    critFlat: 0,
+    firstStrikeMoveMult: 1.12,
+    rangedDefIgnorePct: 0,
+    healMult: 1,
+    potionCapBonus: 0,
+    energyFlat: 0,
+    energyMult: 1,
+    xpGainMult: 1,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0,
+    buffLines: ["+14% speed", "First strike bonus +12%"],
+  },
+  broodmind: {
+    id: "broodmind",
+    speciesId: "insectoid",
+    name: "Broodmind",
+    blurb: "Hive tactician.",
+    hpMult: 1,
+    armorEffect: 1,
+    weaponDamageMult: 1,
+    damageMult: 1,
+    accFlat: 0,
+    evaFlat: 0,
+    speedMult: 1,
+    critFlat: 0,
+    firstStrikeMoveMult: 1,
+    rangedDefIgnorePct: 0,
+    healMult: 1,
+    potionCapBonus: 0,
+    energyFlat: 15,
+    energyMult: 1,
+    xpGainMult: 1,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0,
+    buffLines: ["Enemies within 2 tiles lose 5 EVA", "+15 energy"],
+  },
+  venomblade: {
+    id: "venomblade",
+    speciesId: "insectoid",
+    name: "Venomblade",
+    blurb: "Close-range executioner.",
+    hpMult: 1,
+    armorEffect: 1,
+    weaponDamageMult: 1,
+    damageMult: 1.05,
+    accFlat: 0,
+    evaFlat: 0,
+    speedMult: 1,
+    critFlat: 5,
+    firstStrikeMoveMult: 1,
+    rangedDefIgnorePct: 0,
+    healMult: 1,
+    potionCapBonus: 0,
+    energyFlat: 0,
+    energyMult: 1,
+    xpGainMult: 1,
+    incomingDamageFlatLegacy: 0,
+    critDamageMult: 1.5,
+    critDefIgnorePct: 0,
+    buffLines: ["Melee attacks apply stacking minor poison", "+5% crit chance"],
   },
 };
+
+function classListForSpecies(speciesId) {
+  const sid = normalizeCharacterSpeciesId(speciesId);
+  return Object.values(CLASS_DEFS).filter((entry) => entry?.speciesId === sid);
+}
+
+function defaultClassIdForSpecies(speciesId) {
+  const sid = normalizeCharacterSpeciesId(speciesId);
+  const species = SPECIES_DEFS[sid] ?? SPECIES_DEFS[DEFAULT_CHARACTER_SPECIES_ID];
+  const preferred = normalizeCharacterClassId(species?.defaultClassId ?? DEFAULT_CHARACTER_CLASS_ID);
+  if (CLASS_DEFS[preferred]?.speciesId === sid) return preferred;
+  const first = classListForSpecies(sid)[0];
+  return first?.id ?? DEFAULT_CHARACTER_CLASS_ID;
+}
 
 // ---------- DOM ----------
 const canvas = document.getElementById("c");
@@ -848,6 +1695,10 @@ function teleportPlayerToDepth(state, targetDepth) {
   if (newZ === SURFACE_LEVEL) state.world.ensureChunksAround(0, 0, newZ, 1);
 
   p.z = newZ;
+  p.attackAfterMove = false;
+  p.combatFirstStrikeReady = true;
+  p.slipbladeBonusReady = false;
+  p.overclockUntilMs = 0;
   ensureTeleportLanding(state);
   if (newZ === 0) ensureSurfaceLinkTile(state);
 
@@ -1027,15 +1878,36 @@ function applyVisibilityBoostToTheme(theme) {
 }
 function choice(rng, arr) { return arr[Math.floor(rng() * arr.length)]; }
 function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
+const SPECIES_ID_ALIASES = {
+  dwarf: "automaton",
+  elf: "grey",
+  orc: "insectoid",
+  ratkin: "skulker",
+  skulkers: "skulker",
+};
+const CLASS_ID_ALIASES = {
+  adventurer: "vanguard",
+  fighter: "vanguard",
+  guardian: "bulwark",
+  skirmisher: "operative",
+};
 function normalizeCharacterSpeciesId(value) {
-  const id = String(value ?? "").trim().toLowerCase();
-  if (!id || !SPECIES_DEFS[id]) return DEFAULT_CHARACTER_SPECIES_ID;
-  return id;
-}
-function normalizeCharacterClassId(value) {
   const raw = String(value ?? "").trim().toLowerCase();
-  const mapped = raw === "adventurer" ? "fighter" : raw;
-  if (!mapped || !CLASS_DEFS[mapped]) return DEFAULT_CHARACTER_CLASS_ID;
+  const mapped = SPECIES_ID_ALIASES[raw] ?? raw;
+  if (!mapped || !SPECIES_DEFS[mapped]) return DEFAULT_CHARACTER_SPECIES_ID;
+  return mapped;
+}
+function normalizeCharacterClassId(value, speciesId = null) {
+  const raw = String(value ?? "").trim().toLowerCase();
+  const mappedRaw = CLASS_ID_ALIASES[raw] ?? raw;
+  let mapped = mappedRaw;
+  if (!mapped || !CLASS_DEFS[mapped]) mapped = DEFAULT_CHARACTER_CLASS_ID;
+  if (speciesId !== null && speciesId !== undefined) {
+    const sid = normalizeCharacterSpeciesId(speciesId);
+    if (CLASS_DEFS[mapped]?.speciesId !== sid) {
+      return defaultClassIdForSpecies(sid);
+    }
+  }
   return mapped;
 }
 function characterSpeciesDef(speciesId) {
@@ -1515,7 +2387,8 @@ function chunkFloorishTile(t) {
 }
 
 function chunkTopologyWalkableTile(t) {
-  return t === FLOOR || isOpenDoorTile(t) || t === DOOR_CLOSED || t === STAIRS_DOWN || t === STAIRS_UP;
+  // Treat closed doors as blocked so chokepoint detection favors hard corridor bottlenecks.
+  return t === FLOOR || isOpenDoorTile(t) || t === STAIRS_DOWN || t === STAIRS_UP;
 }
 
 function chunkAreaWalkableTile(t) {
@@ -1558,10 +2431,16 @@ function chunkDoorwayCandidate(grid, x, y) {
   return !!chunkDoorAxis(grid, x, y);
 }
 
-function chunkDoorIsChokepoint(grid, x, y, maxRadius = 18, maxNodes = 1500) {
-  if (!chunkDoorwayCandidate(grid, x, y)) return false;
+function chunkCellIsChokepoint(grid, x, y, maxRadius = 18, maxNodes = 1500) {
   const axis = chunkDoorAxis(grid, x, y);
   if (!axis) return false;
+  const centerTile = grid[y]?.[x];
+  const validCenter =
+    centerTile === FLOOR ||
+    centerTile === DOOR_CLOSED ||
+    isOpenDoorTile(centerTile) ||
+    tileIsLocked(centerTile);
+  if (!validCenter) return false;
   const start = { x: axis.a.x, y: axis.a.y };
   const goal = { x: axis.b.x, y: axis.b.y };
 
@@ -1587,6 +2466,39 @@ function chunkDoorIsChokepoint(grid, x, y, maxRadius = 18, maxNodes = 1500) {
     }
   }
   return true;
+}
+
+function chunkDoorIsChokepoint(grid, x, y, maxRadius = 18, maxNodes = 1500) {
+  if (!chunkDoorwayCandidate(grid, x, y)) return false;
+  return chunkCellIsChokepoint(grid, x, y, maxRadius, maxNodes);
+}
+
+function chunkAreaSizes(areaMap, areaCount) {
+  const sizes = Array.from({ length: Math.max(0, areaCount) }, () => 0);
+  for (let y = 0; y < CHUNK; y++) {
+    for (let x = 0; x < CHUNK; x++) {
+      const areaId = areaMap?.[y]?.[x];
+      if (!Number.isFinite(areaId) || areaId < 0 || areaId >= sizes.length) continue;
+      sizes[areaId] += 1;
+    }
+  }
+  return sizes;
+}
+
+function chunkDoorAreaProfile(grid, areaMap, sizes, x, y) {
+  const axis = chunkDoorAxis(grid, x, y);
+  if (!axis) return null;
+  const aId = Number(areaMap?.[axis.a.y]?.[axis.a.x] ?? -1);
+  const bId = Number(areaMap?.[axis.b.y]?.[axis.b.x] ?? -1);
+  if (!Number.isFinite(aId) || !Number.isFinite(bId) || aId < 0 || bId < 0) return null;
+  if (aId === bId) return null;
+  const aSize = Math.max(0, Math.floor(sizes?.[aId] ?? 0));
+  const bSize = Math.max(0, Math.floor(sizes?.[bId] ?? 0));
+  const maxSize = Math.max(aSize, bSize);
+  const minSize = Math.min(aSize, bSize);
+  const ratio = maxSize / Math.max(1, minSize);
+  const roomCorridorLike = maxSize >= 18 && minSize <= 9;
+  return { aId, bId, aSize, bSize, maxSize, minSize, ratio, roomCorridorLike };
 }
 
 function findRewardChestCellForDoor(grid, door, usedCells) {
@@ -1638,17 +2550,62 @@ function findRewardChestCellForDoor(grid, door, usedCells) {
 function applyLockedDoorChokepoints(grid, rng, z) {
   const candidates = [];
   const center = (CHUNK - 1) / 2;
+  const areaInfo = buildChunkAreaMap(grid);
+  const areaSizes = chunkAreaSizes(areaInfo.areaMap, areaInfo.areaCount);
   for (let y = 1; y < CHUNK - 1; y++) {
     for (let x = 1; x < CHUNK - 1; x++) {
       if (!chunkDoorwayCandidate(grid, x, y)) continue;
       if (!chunkDoorIsChokepoint(grid, x, y)) continue;
+      const profile = chunkDoorAreaProfile(grid, areaInfo.areaMap, areaSizes, x, y);
+      const roomCorridorLike = !!(profile?.roomCorridorLike);
       const dCenter = Math.abs(x - center) + Math.abs(y - center);
-      candidates.push({ x, y, dCenter });
+      candidates.push({
+        x,
+        y,
+        dCenter,
+        source: "door",
+        roomCorridorLike,
+        ratio: profile?.ratio ?? 1,
+        minSideSize: profile?.minSize ?? 0,
+        maxSideSize: profile?.maxSize ?? 0,
+        jitter: rng(),
+      });
+    }
+  }
+
+  // Fallback: if not enough existing doors qualify, also allow floor chokepoints
+  // that fit door axis geometry so every chunk can still produce lock gates.
+  if (candidates.length < 2) {
+    for (let y = 1; y < CHUNK - 1; y++) {
+      for (let x = 1; x < CHUNK - 1; x++) {
+        if (grid[y][x] !== FLOOR) continue;
+        if (!chunkDoorAxis(grid, x, y)) continue;
+        if (!chunkCellIsChokepoint(grid, x, y)) continue;
+        const profile = chunkDoorAreaProfile(grid, areaInfo.areaMap, areaSizes, x, y);
+        const roomCorridorLike = !!(profile?.roomCorridorLike);
+        const dCenter = Math.abs(x - center) + Math.abs(y - center);
+        candidates.push({
+          x,
+          y,
+          dCenter,
+          source: "floor",
+          roomCorridorLike,
+          ratio: profile?.ratio ?? 1,
+          minSideSize: profile?.minSize ?? 0,
+          maxSideSize: profile?.maxSize ?? 0,
+          jitter: rng(),
+        });
+      }
     }
   }
   if (!candidates.length) return [];
 
-  candidates.sort((a, b) => (b.dCenter - a.dCenter) || (rng() < 0.5 ? -1 : 1));
+  candidates.sort((a, b) =>
+    (Number(b.roomCorridorLike) - Number(a.roomCorridorLike)) ||
+    ((b.ratio ?? 1) - (a.ratio ?? 1)) ||
+    ((b.dCenter ?? 0) - (a.dCenter ?? 0)) ||
+    ((b.jitter ?? 0) - (a.jitter ?? 0))
+  );
 
   const desiredBase = 1 + Math.floor(Math.max(0, z) / 5);
   const desired = clamp(desiredBase + (rng() < 0.55 ? 1 : 0), 1, 6);
@@ -2165,6 +3122,12 @@ const MONSTER_TYPES = {
   jelly_red: { id: "jelly_red", name: "Red Slime", aliasOf: "slime_red", glyph: "s", sizeGrowth: true },
   jelly: { id: "jelly", name: "Slime", aliasOf: "slime_yellow", glyph: "s", sizeGrowth: true },
 };
+const VOID_ALIGNED_MONSTER_IDS = new Set([
+  "wraith",
+  "slime_violet",
+  "slime_indigo",
+  "jelly_red",
+]);
 const MONSTER_SIZE_TIERS = [
   { id: "small", depthStart: 0, mult: 1 },
   { id: "large", depthStart: 3, mult: 1.4 },
@@ -2287,6 +3250,7 @@ const WEAPON_MATERIALS = METAL_TIERS.map((m) => m.id);
 const WEAPON_KINDS = ["dagger", "sword", "axe"];
 const ARMOR_MATERIALS = METAL_TIERS.map((m) => m.id);
 const ARMOR_SLOTS = ["head", "chest", "legs"];
+const SCRAPPER_LOW_TIER_MAX_INDEX = Math.max(0, METAL_TIERS.findIndex((tier) => tier.id === "steel"));
 
 const WEAPON_KIND_LABEL = {
   dagger: "Dagger",
@@ -3274,8 +4238,11 @@ function normalizeCharacterProfile(profile = null) {
   const id = /^[a-z0-9_]{4,48}$/.test(rawId) ? rawId : randomCharacterId();
   const rawName = String(src.name ?? DEFAULT_CHARACTER_NAME).trim();
   const name = rawName ? rawName.slice(0, 40) : DEFAULT_CHARACTER_NAME;
-  const classId = normalizeCharacterClassId(src.classId ?? DEFAULT_CHARACTER_CLASS_ID);
   const speciesId = normalizeCharacterSpeciesId(src.speciesId ?? DEFAULT_CHARACTER_SPECIES_ID);
+  const classId = normalizeCharacterClassId(
+    src.classId ?? defaultClassIdForSpecies(speciesId),
+    speciesId
+  );
   const statsInput = src.stats ?? {
     vit: src.stat_vit ?? src.statVit,
     str: src.stat_str ?? src.statStr,
@@ -3880,7 +4847,7 @@ function resetCharacterCreationDraft(profile = null, options = null) {
   characterUi.creation = {
     name: normalized.name,
     speciesId: normalized.speciesId,
-    classId: normalized.classId,
+    classId: normalizeCharacterClassId(normalized.classId, normalized.speciesId),
     stats: useProfileStats ? { ...normalized.stats } : { ...CHARACTER_CREATION_DRAFT_STATS },
   };
   const requestedStep = String(opts.step ?? "welcome");
@@ -3919,24 +4886,10 @@ function characterCreateStepMove(delta = 0) {
   characterUi.createStep = CHARACTER_CREATE_STEPS[next];
 }
 function characterSpeciesBuffLines(speciesId) {
-  const id = normalizeCharacterSpeciesId(speciesId);
-  if (id === "human") return ["+1 creation stat point"];
-  if (id === "dwarf") return ["+10% max HP", "+10% armor effectiveness"];
-  if (id === "elf") return ["+8 ACC", "+6 EVA"];
-  if (id === "orc") return ["+8% damage while below 40% HP"];
-  if (id === "ratkin") return ["+8 EVA", "+5% speed"];
-  if (id === "automaton") return ["+12% armor effectiveness", "-10% healing received"];
-  return [];
+  return [...(characterSpeciesDef(speciesId)?.buffLines ?? [])];
 }
 function characterClassBuffLines(classId) {
-  const id = normalizeCharacterClassId(classId);
-  if (id === "fighter") return ["+10% weapon damage"];
-  if (id === "guardian") return ["+15% max HP", "+10% armor effectiveness"];
-  if (id === "rogue") return ["+10 EVA", "+5% crit chance"];
-  if (id === "ranger") return ["+10 ACC", "Ranged hits ignore 10% DEF"];
-  if (id === "skirmisher") return ["+6% speed", "First strike after movement: +10% damage"];
-  if (id === "alchemist") return ["+20% healing item value", "+1 potion capacity"];
-  return [];
+  return [...(characterClassDef(classId)?.buffLines ?? [])];
 }
 function characterCreationDerivedPreview(draft) {
   const species = characterSpeciesDef(draft.speciesId);
@@ -3949,6 +4902,8 @@ function characterCreationDerivedPreview(draft) {
   const agi = Math.max(0, Math.floor(stats.agi ?? 0));
   const hpMult = (species.hpMult ?? 1) * (classDef.hpMult ?? 1);
   const armorEffect = (species.armorEffect ?? 1) * (classDef.armorEffect ?? 1);
+  const energyMult = (species.energyMult ?? 1) * (classDef.energyMult ?? 1);
+  const energyFlat = Math.floor((species.energyFlat ?? 0) + (classDef.energyFlat ?? 0));
   const maxHp = Math.max(1, Math.round((70 + vit * 18) * PLAYER_STAT_SCALE * hpMult));
   const baseAtk = Math.max(1, Math.round((8 + str * 4) * PLAYER_STAT_SCALE));
   const atkLo = Math.max(1, Math.round(baseAtk * 0.86));
@@ -3957,34 +4912,25 @@ function characterCreationDerivedPreview(draft) {
   const acc = clamp(Math.round(70 + dex * 3 + (species.accFlat ?? 0) + (classDef.accFlat ?? 0)), 10, 98);
   const eva = clamp(Math.round(8 + dex * 2 + agi + (species.evaFlat ?? 0) + (classDef.evaFlat ?? 0)), 0, 85);
   const spd = Number((Math.max(0.55, (1 + agi * 0.03) * (species.speedMult ?? 1) * (classDef.speedMult ?? 1))).toFixed(3));
-  const energy = Math.max(1, Math.round((30 + int * 10) * PLAYER_STAT_SCALE));
+  const energy = Math.max(1, Math.round(((30 + int * 10) * PLAYER_STAT_SCALE) * energyMult + energyFlat));
   return { maxHp, atkLo, atkHi, def, acc, eva, spd, energy };
 }
 function starterCarryoverForClass(classId) {
   const cid = normalizeCharacterClassId(classId);
+  const classDef = characterClassDef(cid);
   const out = {
     gold: 0,
     inv: [],
     equip: { weapon: null, head: null, chest: null, legs: null },
   };
-  if (cid === "fighter") {
-    out.equip.weapon = "weapon_wood_dagger";
-  } else if (cid === "guardian") {
-    out.equip.weapon = "weapon_wood_dagger";
+  out.equip.weapon = "weapon_wood_dagger";
+  if ((classDef?.hpMult ?? 1) >= 1.12 || (classDef?.armorEffect ?? 1) >= 1.1) {
     out.equip.head = "armor_wood_head";
-  } else if (cid === "rogue") {
-    out.equip.weapon = "weapon_wood_dagger";
-    out.inv.push({ type: "potion", amount: 1 });
-  } else if (cid === "ranger") {
-    out.equip.weapon = "weapon_wood_dagger";
-    out.inv.push({ type: "potion", amount: 1 });
-  } else if (cid === "skirmisher") {
-    out.equip.weapon = "weapon_wood_dagger";
-    out.inv.push({ type: "potion", amount: 1 });
-  } else if (cid === "alchemist") {
-    out.equip.weapon = "weapon_wood_dagger";
-    out.inv.push({ type: "potion", amount: 2 });
   }
+  let starterPotions = 0;
+  if ((classDef?.potionCapBonus ?? 0) > 0) starterPotions += 1;
+  if ((classDef?.healMult ?? 1) >= 1.2) starterPotions += 1;
+  if (starterPotions > 0) out.inv.push({ type: "potion", amount: starterPotions });
   return out;
 }
 function renderCharacterSelectBody() {
@@ -4041,7 +4987,7 @@ function renderCharacterCreateBody() {
   if (!characterOverlayBodyEl || !characterOverlayTitleEl || !characterOverlaySubtitleEl) return;
   const draft = characterUi.creation;
   draft.speciesId = normalizeCharacterSpeciesId(draft.speciesId);
-  draft.classId = normalizeCharacterClassId(draft.classId);
+  draft.classId = normalizeCharacterClassId(draft.classId, draft.speciesId);
   draft.stats = normalizeCreationCharacterStats(draft.stats, draft.speciesId);
   const species = characterSpeciesDef(draft.speciesId);
   const klass = characterClassDef(draft.classId);
@@ -4075,13 +5021,23 @@ function renderCharacterCreateBody() {
       `<div class="charChoiceGrid">` +
       `${Object.values(SPECIES_DEFS).map((entry) => {
         const selected = entry.id === draft.speciesId;
+        const defaultClassId = defaultClassIdForSpecies(entry.id);
+        const defaultClass = characterClassDef(defaultClassId);
+        const spriteDisplay = resolveCharacterSpriteDisplay(entry.id, defaultClassId);
+        const visual = spriteDisplay.src
+          ? `<img class="charChoiceSprite" src="${spriteDisplay.src}" alt="${escapeHtmlText(entry.name)} ${escapeHtmlText(defaultClass.name)} sprite" />`
+          : `<div class="charChoiceSpriteFallback">@</div>`;
         const buffs = characterSpeciesBuffLines(entry.id)
           .map((line) => `<li>${escapeHtmlText(line)}</li>`)
           .join("");
-        return `<button type="button" class="charChoiceCard${selected ? " selected" : ""}" data-species-id="${entry.id}">` +
-          `<div class="charChoiceName">${escapeHtmlText(entry.name)}</div>` +
-          `<div class="charChoiceBlurb">${escapeHtmlText(entry.blurb)}</div>` +
-          `<ul class="charBuffList">${buffs}</ul>` +
+        return `<button type="button" class="charChoiceCard speciesChoiceCard${selected ? " selected" : ""}" data-species-id="${entry.id}">` +
+          `<div class="charChoiceVisual">${visual}</div>` +
+          `<div class="charChoiceMeta">` +
+            `<div class="charChoiceName">${escapeHtmlText(entry.name)}</div>` +
+            `<div class="charChoiceSubtle">Default class: ${escapeHtmlText(defaultClass.name)}</div>` +
+            `<div class="charChoiceBlurb">${escapeHtmlText(entry.blurb)}</div>` +
+            `<ul class="charBuffList">${buffs}</ul>` +
+          `</div>` +
           `</button>`;
       }).join("")}` +
       `</div>`;
@@ -4089,17 +5045,22 @@ function renderCharacterCreateBody() {
       btn.addEventListener("click", () => {
         const id = normalizeCharacterSpeciesId(btn.getAttribute("data-species-id"));
         characterUi.creation.speciesId = id;
+        characterUi.creation.classId = defaultClassIdForSpecies(id);
         characterUi.creation.stats = normalizeCreationCharacterStats(characterUi.creation.stats, id);
         setCharacterOverlayStatus("");
         renderCharacterOverlay();
       });
     }
   } else if (step === "class") {
+    const classChoices = classListForSpecies(draft.speciesId);
+    if (!classChoices.find((entry) => entry.id === draft.classId)) {
+      draft.classId = defaultClassIdForSpecies(draft.speciesId);
+    }
     characterOverlayBodyEl.innerHTML =
       statusHtml +
-      `<div class="charStepLead">Step 3/5: Choose Class</div>` +
+      `<div class="charStepLead">Step 3/5: Choose Class (${escapeHtmlText(species.name)})</div>` +
       `<div class="charChoiceGrid">` +
-      `${Object.values(CLASS_DEFS).map((entry) => {
+      `${classChoices.map((entry) => {
         const selected = entry.id === draft.classId;
         const spriteDisplay = resolveCharacterSpriteDisplay(draft.speciesId, entry.id);
         const visual = spriteDisplay.src
@@ -4120,7 +5081,10 @@ function renderCharacterCreateBody() {
       `</div>`;
     for (const btn of characterOverlayBodyEl.querySelectorAll("[data-class-id]")) {
       btn.addEventListener("click", () => {
-        characterUi.creation.classId = normalizeCharacterClassId(btn.getAttribute("data-class-id"));
+        characterUi.creation.classId = normalizeCharacterClassId(
+          btn.getAttribute("data-class-id"),
+          characterUi.creation.speciesId
+        );
         setCharacterOverlayStatus("");
         renderCharacterOverlay();
       });
@@ -5027,8 +5991,8 @@ function recalcDerivedStats(state) {
   const profile = ensureCharacterState(state);
   const p = state.player;
   if (profile) {
-    profile.classId = normalizeCharacterClassId(profile.classId);
     profile.speciesId = normalizeCharacterSpeciesId(profile.speciesId);
+    profile.classId = normalizeCharacterClassId(profile.classId, profile.speciesId);
     profile.stats = normalizeCharacterStats(profile.stats, profile.speciesId);
     p.classId = profile.classId;
     p.speciesId = profile.speciesId;
@@ -5063,6 +6027,8 @@ function recalcDerivedStats(state) {
   const baseEva = 8 + dex * 2 + agi;
   const baseSpd = 1 + agi * 0.03;
   const armorEffect = (species.armorEffect ?? 1) * (classDef.armorEffect ?? 1);
+  const energyMult = Math.max(0.1, (species.energyMult ?? 1) * (classDef.energyMult ?? 1));
+  const energyFlat = Math.floor((species.energyFlat ?? 0) + (classDef.energyFlat ?? 0));
   const newMaxHp = Math.max(1, maxHpForLevel(level, profile));
   const prevMaxHp = Math.max(1, Math.floor(p.maxHp ?? newMaxHp));
   const hpRatio = clamp((p.hp ?? newMaxHp) / prevMaxHp, 0, 1);
@@ -5080,15 +6046,22 @@ function recalcDerivedStats(state) {
   p.acc = clamp(Math.round(baseAcc + (species.accFlat ?? 0) + (classDef.accFlat ?? 0)), 10, 98);
   p.eva = clamp(Math.round(baseEva + (species.evaFlat ?? 0) + (classDef.evaFlat ?? 0)), 0, 85);
   p.spd = Number((baseSpd * (species.speedMult ?? 1) * (classDef.speedMult ?? 1)).toFixed(3));
-  p.energyMax = Math.max(1, Math.round((30 + int * 10) * PLAYER_STAT_SCALE));
+  p.energyMax = Math.max(1, Math.round(((30 + int * 10) * PLAYER_STAT_SCALE) * energyMult + energyFlat));
   p.critChance = clamp(Math.round(2 + dex * 0.6 + (classDef.critFlat ?? 0)), 0, 45);
+  p.critDamageMult = Math.max(1, Number(classDef.critDamageMult ?? 1.5));
+  p.critDefIgnorePct = clamp(Number(classDef.critDefIgnorePct ?? 0), 0, 0.9);
   p.healMult = Math.max(0.1, (species.healMult ?? 1) * (classDef.healMult ?? 1));
+  p.xpGainMult = Math.max(0.1, (species.xpGainMult ?? 1) * (classDef.xpGainMult ?? 1));
+  p.incomingDamageFlat = Math.max(0, Math.floor(Number(classDef.incomingDamageFlatLegacy ?? 0) * COMBAT_SCALE));
   p.weaponDamageMult = classDef.weaponDamageMult ?? 1;
   p.damageMult = classDef.damageMult ?? 1;
   p.lowHpDamageMult = species.lowHpDamageMult ?? 1;
   p.firstStrikeMoveMult = classDef.firstStrikeMoveMult ?? 1;
   p.rangedDefIgnorePct = clamp(classDef.rangedDefIgnorePct ?? 0, 0, 0.75);
   p.potionCapacity = potionCapacityForState(state);
+  if (typeof p.combatFirstStrikeReady !== "boolean") p.combatFirstStrikeReady = true;
+  if (typeof p.slipbladeBonusReady !== "boolean") p.slipbladeBonusReady = false;
+  if (!Number.isFinite(p.overclockUntilMs)) p.overclockUntilMs = 0;
 }
 function characterStatLabelShort(key) {
   if (key === "vit") return "VIT";
@@ -5402,6 +6375,10 @@ function respawnAtStart(state) {
   p.dead = false;
   p.hp = p.maxHp;
   p.effects = [];
+  p.attackAfterMove = false;
+  p.combatFirstStrikeReady = true;
+  p.slipbladeBonusReady = false;
+  p.overclockUntilMs = 0;
   p.x = sp.x; p.y = sp.y; p.z = sp.z;
   state.disengageGrace = {};
   const combat = ensureCombatState(state);
@@ -5445,6 +6422,9 @@ function makeNewGame(seedStr = randomSeedString(), options = null) {
     healMult: 1,
     potionCapacity: BASE_POTION_CAPACITY,
     attackAfterMove: false,
+    combatFirstStrikeReady: true,
+    slipbladeBonusReady: false,
+    overclockUntilMs: 0,
     gold: 0,
     equip: { weapon: null, head: null, chest: null, legs: null },
     effects: [],
@@ -6091,8 +7071,10 @@ function grantXP(state, amount) {
     p.maxHp = expectedMaxHp;
     p.hp = clamp(Math.round(expectedMaxHp * ratio), 0, expectedMaxHp);
   }
-  p.xp += amount;
-  pushLog(state, `+${amount} XP`);
+  const xpMult = Math.max(0.1, Number(p.xpGainMult ?? 1));
+  const gainedXp = Math.max(1, Math.round(amount * xpMult));
+  p.xp += gainedXp;
+  pushLog(state, `+${gainedXp} XP`);
   let didLevelUp = false;
 
   while (p.xp >= xpToNext(p.level)) {
@@ -6156,8 +7138,29 @@ function applyDefenseMitigation(rawDamage, defense, ignorePct = 0) {
   const minDamage = Math.max(1, Math.round(raw * 0.10));
   return Math.max(minDamage, Math.round(scaled));
 }
-function playerAttackDamage(state, monster = null) {
+function isVoidAlignedMonsterType(type) {
+  const raw = String(type ?? "").trim();
+  if (!raw) return false;
+  const alias = MONSTER_TYPES[raw]?.aliasOf ?? "";
+  return VOID_ALIGNED_MONSTER_IDS.has(raw) || (alias ? VOID_ALIGNED_MONSTER_IDS.has(alias) : false);
+}
+function isLowTierWeaponType(type) {
+  if (!type || typeof type !== "string" || !type.startsWith("weapon_")) return false;
+  const materialId = materialIdFromItemType(type);
+  if (!materialId) return false;
+  const tierIndex = METAL_TIERS.findIndex((tier) => tier.id === materialId);
+  return tierIndex >= 0 && tierIndex <= SCRAPPER_LOW_TIER_MAX_INDEX;
+}
+function playerAttackDamage(state, monster = null, options = null) {
   const p = state.player;
+  const opts = (options && typeof options === "object") ? options : {};
+  const classId = normalizeCharacterClassId(p.classId, p.speciesId);
+  const firstCombatStrike = !!opts.firstCombatStrike;
+  const attackAfterMove = !!opts.attackAfterMove;
+  const targetUnengaged = !!opts.targetUnengaged;
+  const distance = Math.max(0, Math.floor(Number(opts.distance ?? (
+    monster ? (Math.abs((monster.x ?? 0) - p.x) + Math.abs((monster.y ?? 0) - p.y)) : 1
+  )) || 0));
   const baseLo = Math.max(1, Math.floor(p.atkLo ?? 1));
   const baseHi = Math.max(baseLo, Math.floor(p.atkHi ?? baseLo));
   const baseRoll = baseLo + Math.floor(Math.random() * (baseHi - baseLo + 1));
@@ -6170,24 +7173,47 @@ function playerAttackDamage(state, monster = null) {
 
   let damageMult = Math.max(0.1, Number(p.damageMult ?? 1));
   if ((p.lowHpDamageMult ?? 1) > 1 && p.hp <= Math.max(1, p.maxHp) * 0.4) damageMult *= p.lowHpDamageMult;
-  if (p.attackAfterMove) damageMult *= Math.max(1, Number(p.firstStrikeMoveMult ?? 1));
+  if (attackAfterMove) damageMult *= Math.max(1, Number(p.firstStrikeMoveMult ?? 1));
+  if (classId === "tunnel_striker" && distance <= 1) damageMult *= 1.15;
+  if (classId === "riftstalker" && targetUnengaged) damageMult *= 1.15;
+  if (classId === "slipblade" && p.slipbladeBonusReady) {
+    damageMult *= 1.1;
+    p.slipbladeBonusReady = false;
+  }
+  if (classId === "overclock_unit" && Number(p.overclockUntilMs ?? 0) > Date.now()) damageMult *= 1.1;
+  if (classId === "nullblade" && monster && isVoidAlignedMonsterType(monster.type)) damageMult *= 1.1;
+  if (classId === "scrapper" && isLowTierWeaponType(p.equip?.weapon)) damageMult *= 1.1;
 
   let crit = false;
   if (Math.random() * 100 < clamp(Math.round(p.critChance ?? 0), 0, 95)) {
     crit = true;
-    damageMult *= 1.5;
+    damageMult *= Math.max(1, Number(p.critDamageMult ?? 1.5));
   }
+  if (classId === "skydarter" && firstCombatStrike) damageMult *= 1.12;
   raw = Math.max(1, Math.round(raw * damageMult));
 
   if (!monster) return { raw, dmg: raw, crit };
   const mSpec = monsterStatsForDepth(monster.type, monster.z ?? state.player.z);
-  const dmg = applyDefenseMitigation(raw, mSpec.def, p.rangedDefIgnorePct ?? 0);
+  let ignorePct = Math.max(
+    Number(p.rangedDefIgnorePct ?? 0),
+    crit ? Number(p.critDefIgnorePct ?? 0) : 0
+  );
+  if (classId === "veilblade" && firstCombatStrike) ignorePct = Math.max(ignorePct, 0.25);
+  const dmg = applyDefenseMitigation(raw, mSpec.def, ignorePct);
   return { raw, dmg, crit };
 }
 function reduceIncomingDamage(state, dmg, attackerDepth = null) {
   const _depth = clamp(Math.floor(attackerDepth ?? state.player.z ?? 0), 0, 160);
   void _depth;
-  return applyDefenseMitigation(Math.max(1, Math.floor(dmg ?? 1)), state.player.defBonus ?? 0, 0);
+  const mitigated = applyDefenseMitigation(Math.max(1, Math.floor(dmg ?? 1)), state.player.defBonus ?? 0, 0);
+  const flatReduction = Math.max(0, Math.floor(state.player.incomingDamageFlat ?? 0));
+  let reduced = Math.max(1, mitigated - flatReduction);
+  let shaded = false;
+  if (normalizeCharacterClassId(state.player.classId, state.player.speciesId) === "shadeguard" && Math.random() < 0.15) {
+    reduced = Math.max(1, Math.round(reduced * 0.7));
+    shaded = true;
+  }
+  return { dmg: reduced, shaded };
 }
 function ensureCombatState(state) {
   if (!state.combat || typeof state.combat !== "object") {
@@ -6233,7 +7259,7 @@ function pruneCombatHudTargets(state, now = Date.now()) {
 }
 function applyOutOfCombatRegen(state, now = Date.now()) {
   const p = state.player;
-  if (!p || p.dead || p.hp >= p.maxHp) return false;
+  if (!p || p.dead) return false;
   const combat = ensureCombatState(state);
   pruneCombatHudTargets(state, now);
   if (combat.lastEventMs > 0 && now - combat.lastEventMs < COMBAT_REGEN_DELAY_MS) {
@@ -6247,6 +7273,8 @@ function applyOutOfCombatRegen(state, now = Date.now()) {
   if (!Number.isFinite(combat.regenAnchorMs) || combat.regenAnchorMs < combat.lastEventMs) {
     combat.regenAnchorMs = Math.max(combat.lastEventMs, now - COMBAT_REGEN_TICK_MS);
   }
+  if (!p.combatFirstStrikeReady) p.combatFirstStrikeReady = true;
+  if (p.hp >= p.maxHp) return false;
   const elapsed = now - combat.regenAnchorMs;
   const ticks = Math.floor(elapsed / COMBAT_REGEN_TICK_MS);
   if (ticks <= 0) return false;
@@ -6396,12 +7424,40 @@ function maybeDropKeyFromMonster(state, monster) {
 }
 
 // ---------- Player actions ----------
+function tryKnockbackMonster(state, monster, sourceX, sourceY) {
+  if (!monster || monster.kind !== "monster") return false;
+  const dx = Math.sign((monster.x ?? 0) - (sourceX ?? 0));
+  const dy = Math.sign((monster.y ?? 0) - (sourceY ?? 0));
+  if (dx === 0 && dy === 0) return false;
+  const tx = (monster.x ?? 0) + dx;
+  const ty = (monster.y ?? 0) + dy;
+  const tz = monster.z ?? state.player.z;
+  if (!state.world.isPassable(tx, ty, tz)) return false;
+  const occ = buildOccupancy(state);
+  const occKey = keyXYZ(tx, ty, tz);
+  if (occ.monsters.has(occKey) || occ.items.has(occKey)) return false;
+  monster.x = tx;
+  monster.y = ty;
+  if (monster.origin === "base") {
+    state.entityOverrides.set(monster.id, { x: monster.x, y: monster.y, z: monster.z, hp: monster.hp, cd: monster.cd ?? 0 });
+  }
+  return true;
+}
+
 function playerAttack(state, monster) {
   markCombatEvent(state, monster);
   const p = state.player;
+  const classId = normalizeCharacterClassId(p.classId, p.speciesId);
   const mSpec = monsterStatsForDepth(monster.type, monster.z ?? p.z);
+  const attackAfterMove = !!p.attackAfterMove;
+  const firstCombatStrike = !!p.combatFirstStrikeReady;
+  const distance = Math.abs((monster.x ?? 0) - p.x) + Math.abs((monster.y ?? 0) - p.y);
+  const targetUnengaged = !monster.awake;
   p.attackAfterMove = false;
-  if (!rollHit(p.acc, mSpec.eva)) {
+  p.combatFirstStrikeReady = false;
+  let targetEva = mSpec.eva;
+  if (classId === "broodmind" && distance <= 2) targetEva = Math.max(0, targetEva - 5);
+  if (!rollHit(p.acc, targetEva)) {
     monster.awake = true;
     pushLog(state, `You miss the ${MONSTER_TYPES[monster.type]?.name ?? monster.type}.`);
     if (monster.origin === "base") {
@@ -6410,7 +7466,12 @@ function playerAttack(state, monster) {
     return;
   }
   const hpBefore = monster.hp;
-  const attack = playerAttackDamage(state, monster);
+  const attack = playerAttackDamage(state, monster, {
+    attackAfterMove,
+    firstCombatStrike,
+    targetUnengaged,
+    distance,
+  });
   const dmg = attack.dmg;
   monster.hp -= dmg;
   monster.awake = true;
@@ -6420,6 +7481,9 @@ function playerAttack(state, monster) {
   }
 
   pushLog(state, `You hit the ${MONSTER_TYPES[monster.type]?.name ?? monster.type} for ${dmg}${attack.crit ? " (critical)" : ""}.`);
+  if (classId === "telekinetic" && firstCombatStrike && monster.hp > 0 && tryKnockbackMonster(state, monster, p.x, p.y)) {
+    pushLog(state, `Telekinetic force knocks the ${MONSTER_TYPES[monster.type]?.name ?? monster.type} back.`);
+  }
   grantXP(state, xpFromDamage(Math.max(0, Math.min(dmg, hpBefore))));
 
   if (monster.hp <= 0) {
@@ -6544,6 +7608,8 @@ function pickup(state) {
   } else if (it.type.startsWith("key_")) {
     invAdd(state, it.type, it.amount ?? 1);
     pushLog(state, `Picked up a ${ITEM_TYPES[it.type].name}.`);
+    // Backfill missing lock gates in already explored terrain if generation did not place one nearby.
+    placeMatchingLockedDoorNearPlayer(state, it.type);
   } else if (it.type.startsWith("weapon_") || it.type.startsWith("armor_")) {
     invAdd(state, it.type, 1);
     pushLog(state, `Picked up ${ITEM_TYPES[it.type].name}.`);
@@ -6824,6 +7890,10 @@ function goToLevel(state, newZ, direction) {
   }
 
   p.z = newZ;
+  p.attackAfterMove = false;
+  p.combatFirstStrikeReady = true;
+  p.slipbladeBonusReady = false;
+  p.overclockUntilMs = 0;
 
   if (!state.world.isPassable(p.x, p.y, p.z)) state.world.setTile(p.x, p.y, p.z, FLOOR);
 
@@ -6916,7 +7986,12 @@ function monsterHitPlayer(state, monster, baseDmgLo, baseDmgHi, verb = "hits") {
   markCombatEvent(state, monster);
   const nm = MONSTER_TYPES[monster.type]?.name ?? monster.type;
   const spec = monsterStatsForDepth(monster.type, monster.z ?? state.player.z);
-  if (!rollHit(spec.acc, state.player.eva ?? 0)) {
+  const classId = normalizeCharacterClassId(state.player.classId, state.player.speciesId);
+  const dist = Math.abs((monster?.x ?? 0) - state.player.x) + Math.abs((monster?.y ?? 0) - state.player.y);
+  let attackerAcc = spec.acc;
+  if (classId === "warden_gap" && dist <= 2) attackerAcc = Math.max(8, attackerAcc - 5);
+  if (!rollHit(attackerAcc, state.player.eva ?? 0)) {
+    if (classId === "slipblade") state.player.slipbladeBonusReady = true;
     pushLog(state, `The ${nm} misses you.`);
     return;
   }
@@ -6927,9 +8002,12 @@ function monsterHitPlayer(state, monster, baseDmgLo, baseDmgHi, verb = "hits") {
     return;
   }
 
-  const dmg = reduceIncomingDamage(state, raw, monster.z ?? state.player.z);
+  const reduced = reduceIncomingDamage(state, raw, monster.z ?? state.player.z);
+  const dmg = Math.max(1, Math.floor(reduced?.dmg ?? 1));
   state.player.hp -= dmg;
+  if (classId === "overclock_unit") state.player.overclockUntilMs = Date.now() + 3000;
   pushLog(state, `The ${nm} ${verb} you for ${dmg}.`);
+  if (reduced?.shaded) pushLog(state, "Shadeguard ward dampens the blow.");
   if (state.player.hp <= 0) killPlayer(state);
 }
 
@@ -7935,7 +9013,7 @@ const ENVIRONMENT_SPRITE_OBJECTS = [
 function characterSpriteCatalogEntries() {
   const out = [];
   for (const species of Object.values(SPECIES_DEFS)) {
-    for (const klass of Object.values(CLASS_DEFS)) {
+    for (const klass of classListForSpecies(species.id)) {
       const spriteId = characterSpriteId(species.id, klass.id);
       out.push({
         objectId: spriteId,
@@ -8375,6 +9453,26 @@ function loadImageElementFromFile(file) {
   });
 }
 
+function verifySpriteAssetUrlLoad(url) {
+  return new Promise((resolve, reject) => {
+    const src = String(url || "").trim();
+    if (!src) {
+      reject(new Error("Sprite URL is missing after upload."));
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      if ((img.naturalWidth || 0) <= 0 || (img.naturalHeight || 0) <= 0) {
+        reject(new Error("Uploaded sprite loaded with invalid dimensions."));
+        return;
+      }
+      resolve(true);
+    };
+    img.onerror = () => reject(new Error("Uploaded sprite could not be loaded from the server."));
+    img.src = withCacheBust(src);
+  });
+}
+
 function canvasToBlobAsync(canvas, type, quality) {
   return new Promise((resolve, reject) => {
     canvas.toBlob((blob) => {
@@ -8742,9 +9840,9 @@ async function uploadSpriteForEntry(entry, file) {
   const mime = String(file.type || "").toLowerCase().trim();
   const name = String(file.name || "").toLowerCase().trim();
   const mimeOk = mime === "" || mime.startsWith("image/");
-  const extOk = /\.(png|jpe?g|webp|gif|bmp|avif|tiff?)$/i.test(name);
+  const extOk = /\.(png|jpe?g|webp)$/i.test(name);
   if ((mime && !mimeOk) || (!mime && !extOk)) {
-    setSpriteEditorStatus("Unsupported file. Upload an image.", true);
+    setSpriteEditorStatus("Unsupported file. Upload PNG, JPG, or WEBP.", true);
     return false;
   }
   let uploadFile = file;
@@ -8752,53 +9850,24 @@ async function uploadSpriteForEntry(entry, file) {
   setSpriteEditorStatus(`Uploading sprite for ${entry.objectId}...`, false);
   renderSpriteEditorList();
   try {
-    const initialTargetBytes = Math.max(
-      120_000,
-      Math.min(CLIENT_SPRITE_UPLOAD_SOFT_TARGET_BYTES, Math.floor(maxUploadBytes * 0.9))
-    );
-    setSpriteEditorStatus(`Compressing sprite for ${entry.objectId}...`, false);
-    renderSpriteEditorList();
-    uploadFile = await compressSpriteUploadFile(file, initialTargetBytes);
     if (uploadFile.size > maxUploadBytes) {
       const targetText = formatBytesCompact(maxUploadBytes);
       const outText = formatBytesCompact(uploadFile.size);
-      throw new Error(`Compressed sprite is still too large (${outText}; max ${targetText}). Try a smaller source image.`);
+      throw new Error(`Sprite is too large (${outText}; max ${targetText}).`);
     }
-    const originalSizeText = formatBytesCompact(file.size);
-    const compressedSizeText = formatBytesCompact(uploadFile.size);
-    setSpriteEditorStatus(`Compressed ${originalSizeText} -> ${compressedSizeText}. Uploading...`, false);
+    const originalSizeText = formatBytesCompact(uploadFile.size);
+    setSpriteEditorStatus(`Uploading original sprite (${originalSizeText})...`, false);
     renderSpriteEditorList();
 
-    let form = new FormData();
+    const form = new FormData();
     form.append("action", "upload");
     form.append("sprite_id", entry.spriteId);
     form.append("category", entry.uploadDir);
     form.append("sprite_file", uploadFile);
-    let data = null;
-    try {
-      data = await spriteApiRequest("POST", form);
-    } catch (err) {
-      const msg = String(err?.message || "");
-      const is413 = msg.includes("(413)") || msg.includes("too large");
-      if (!is413) throw err;
-
-      const emergencyTarget = Math.max(
-        96_000,
-        Math.min(CLIENT_SPRITE_UPLOAD_RETRY_TARGET_BYTES, Math.floor(uploadFile.size * 0.65))
-      );
-      if (uploadFile.size <= emergencyTarget) throw err;
-      setSpriteEditorStatus("Server still rejected size. Applying stronger compression...", false);
-      renderSpriteEditorList();
-      uploadFile = await compressSpriteUploadFile(uploadFile, emergencyTarget);
-
-      form = new FormData();
-      form.append("action", "upload");
-      form.append("sprite_id", entry.spriteId);
-      form.append("category", entry.uploadDir);
-      form.append("sprite_file", uploadFile);
-      data = await spriteApiRequest("POST", form);
-    }
+    const data = await spriteApiRequest("POST", form);
     applySpritePayload(data);
+    const uploadedUrl = String(data?.url || spriteOverrideState.overrides?.[entry.spriteId] || "");
+    await verifySpriteAssetUrlLoad(uploadedUrl);
     setSpriteEditorStatus(`Uploaded sprite for ${entry.objectId}.`, false);
     renderInfoOverlay(game);
     renderSpriteEditorList();
@@ -9530,7 +10599,7 @@ function isDoorwayCandidate(state, x, y, z) {
 }
 
 function topologyWalkableTile(t) {
-  return t === FLOOR || isOpenDoorTile(t) || t === DOOR_CLOSED || t === STAIRS_DOWN || t === STAIRS_UP;
+  return t === FLOOR || isOpenDoorTile(t) || t === STAIRS_DOWN || t === STAIRS_UP;
 }
 
 function isDoorChokepoint(state, x, y, z, maxRadius = 28, maxNodes = 2600) {
