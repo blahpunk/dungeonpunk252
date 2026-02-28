@@ -188,10 +188,12 @@ const LEVEL_UP_ATTRIBUTE_POINTS = 1;
 const PLAYER_STAT_SCALE = 10;
 const PLAYER_OFFENSE_LEVEL_SCALE_WEIGHT = 1.35;
 const PLAYER_DEFENSE_LEVEL_SCALE_WEIGHT = 1.2;
-const MONSTER_OFFENSE_DEPTH_SCALE_WEIGHT = 0.72;
 const MONSTER_OFFENSE_SIZE_SCALE_WEIGHT = 0.35;
-const MONSTER_DEFENSE_DEPTH_SCALE_WEIGHT = 0.28;
 const MONSTER_DEFENSE_SIZE_SCALE_WEIGHT = 0.12;
+const MONSTER_OFFENSE_DEPTH_WEIGHT_SHALLOW = 1.02;
+const MONSTER_OFFENSE_DEPTH_WEIGHT_DEEP = 0.72;
+const MONSTER_DEFENSE_DEPTH_WEIGHT_SHALLOW = 0.9;
+const MONSTER_DEFENSE_DEPTH_WEIGHT_DEEP = 0.28;
 const BASE_POTION_CAPACITY = 5;
 const DEFAULT_CHARACTER_STATS = { vit: 2, str: 3, dex: 2, int: 1, agi: 2 };
 const CHARACTER_CREATION_DRAFT_STATS = { vit: 0, str: 0, dex: 0, int: 0, agi: 0 };
@@ -2197,11 +2199,16 @@ function monsterStatsForDepth(type, z) {
   const tierIndex = Math.max(0, MONSTER_SIZE_TIERS.findIndex((t) => t.id === sizeTier.id));
   const sizePenalty = spec?.sizeGrowth ? tierIndex : 0;
   const hpScale = scale * sizeTier.mult;
+  const depthT = clamp(depth / 20, 0, 1);
+  const offenseDepthWeight = MONSTER_OFFENSE_DEPTH_WEIGHT_SHALLOW +
+    (MONSTER_OFFENSE_DEPTH_WEIGHT_DEEP - MONSTER_OFFENSE_DEPTH_WEIGHT_SHALLOW) * depthT;
+  const defenseDepthWeight = MONSTER_DEFENSE_DEPTH_WEIGHT_SHALLOW +
+    (MONSTER_DEFENSE_DEPTH_WEIGHT_DEEP - MONSTER_DEFENSE_DEPTH_WEIGHT_SHALLOW) * depthT;
   const offenseScale =
-    (1 + (scale - 1) * MONSTER_OFFENSE_DEPTH_SCALE_WEIGHT) *
+    (1 + (scale - 1) * offenseDepthWeight) *
     (1 + (sizeTier.mult - 1) * MONSTER_OFFENSE_SIZE_SCALE_WEIGHT);
   const defenseScale =
-    (1 + (scale - 1) * MONSTER_DEFENSE_DEPTH_SCALE_WEIGHT) *
+    (1 + (scale - 1) * defenseDepthWeight) *
     (1 + (sizeTier.mult - 1) * MONSTER_DEFENSE_SIZE_SCALE_WEIGHT);
   const maxHp = Math.max(1, Math.round((spec.baseHp ?? 18) * hpScale * PLAYER_STAT_SCALE));
   const atk = Math.max(1, Math.round((spec.baseAtk ?? 6) * offenseScale * PLAYER_STAT_SCALE));
