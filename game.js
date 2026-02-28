@@ -176,6 +176,7 @@ const AREA_RESPAWN_DEPTH_CAP = 15;
 const OUT_OF_COMBAT_HP_BAR_WIDTH_FRAC = 0.82;
 const OUT_OF_COMBAT_HP_BAR_HEIGHT_FRAC = 0.125;
 const COMBAT_HP_BAR_NEARBY_EXTRA_GAP_FRAC = 0.2;
+const PLAYER_COMBAT_HP_BAR_EXTRA_LIFT_FRAC = 0.07;
 const DEFAULT_CHARACTER_NAME = "Adventurer";
 const DEFAULT_CHARACTER_CLASS_ID = "fighter";
 const DEFAULT_CHARACTER_SPECIES_ID = "human";
@@ -185,6 +186,12 @@ const CHARACTER_CREATION_MAX_STAT = 6;
 const CHARACTER_STAT_MAX = 40;
 const LEVEL_UP_ATTRIBUTE_POINTS = 1;
 const PLAYER_STAT_SCALE = 10;
+const PLAYER_OFFENSE_LEVEL_SCALE_WEIGHT = 1.35;
+const PLAYER_DEFENSE_LEVEL_SCALE_WEIGHT = 1.2;
+const MONSTER_OFFENSE_DEPTH_SCALE_WEIGHT = 0.72;
+const MONSTER_OFFENSE_SIZE_SCALE_WEIGHT = 0.35;
+const MONSTER_DEFENSE_DEPTH_SCALE_WEIGHT = 0.28;
+const MONSTER_DEFENSE_SIZE_SCALE_WEIGHT = 0.12;
 const BASE_POTION_CAPACITY = 5;
 const DEFAULT_CHARACTER_STATS = { vit: 2, str: 3, dex: 2, int: 1, agi: 2 };
 const CHARACTER_CREATION_DRAFT_STATS = { vit: 0, str: 0, dex: 0, int: 0, agi: 0 };
@@ -461,6 +468,9 @@ const spriteFilterCategoryEl = document.getElementById("spriteFilterCategory");
 const spriteFilterArmorTypeEl = document.getElementById("spriteFilterArmorType");
 const spriteFilterSourceEl = document.getElementById("spriteFilterSource");
 const spriteFilterSearchEl = document.getElementById("spriteFilterSearch");
+const spriteSelectAllEl = document.getElementById("spriteSelectAll");
+const spriteBulkScaleInputEl = document.getElementById("spriteBulkScaleInput");
+const spriteBulkSetSizeBtnEl = document.getElementById("spriteBulkSetSizeBtn");
 const spriteEditorRefreshBtnEl = document.getElementById("spriteEditorRefreshBtn");
 const spriteEditorStatusEl = document.getElementById("spriteEditorStatus");
 const spriteEditorListEl = document.getElementById("spriteEditorList");
@@ -602,6 +612,7 @@ const spriteEditorUi = {
   open: false,
   loading: false,
   objects: [],
+  selectedSpriteIds: new Set(),
   filterCategory: "all",
   filterArmorType: "all",
   filterSource: "all",
@@ -735,10 +746,15 @@ function setPlayerLevelDebug(state, targetLevel) {
   if (!canUseAdminControls()) return false;
   const p = state.player;
   if (!p || !Number.isFinite(targetLevel)) return false;
+  const profile = ensureCharacterState(state);
   const prevLevel = Math.max(1, Math.floor(p.level ?? 1));
   const prevMaxHp = Math.max(1, Math.floor(p.maxHp ?? maxHpForLevel(prevLevel, state.character)));
   const newLevel = clamp(Math.trunc(targetLevel), 1, 9999);
   p.level = newLevel;
+  if (profile) {
+    const deltaPoints = (newLevel - prevLevel) * LEVEL_UP_ATTRIBUTE_POINTS;
+    profile.unspentStatPoints = Math.max(0, Math.floor(profile.unspentStatPoints ?? 0) + deltaPoints);
+  }
   // Reset progress within the level so XP/UI always matches the chosen level.
   p.xp = 0;
   const newMaxHp = maxHpForLevel(newLevel, state.character);
@@ -2057,12 +2073,12 @@ const MONSTER_TYPES = {
   skeleton: {
     id: "skeleton",
     name: "Skeleton",
-    baseHp: 34, baseAtk: 11, baseDef: 5, baseAcc: 68, baseEva: 8, spd: 0.95, xp: 6, glyph: "k", sizeGrowth: true,
+    baseHp: 40, baseAtk: 11, baseDef: 5, baseAcc: 68, baseEva: 8, spd: 0.95, xp: 6, glyph: "k", sizeGrowth: true,
   },
   goblin: {
     id: "goblin",
     name: "Goblin",
-    baseHp: 28, baseAtk: 13, baseDef: 3, baseAcc: 74, baseEva: 14, spd: 1.1, xp: 7, glyph: "g", sizeGrowth: true,
+    baseHp: 33, baseAtk: 13, baseDef: 3, baseAcc: 74, baseEva: 14, spd: 1.1, xp: 7, glyph: "g", sizeGrowth: true,
   },
   archer: {
     id: "archer",
@@ -2181,11 +2197,17 @@ function monsterStatsForDepth(type, z) {
   const tierIndex = Math.max(0, MONSTER_SIZE_TIERS.findIndex((t) => t.id === sizeTier.id));
   const sizePenalty = spec?.sizeGrowth ? tierIndex : 0;
   const hpScale = scale * sizeTier.mult;
+  const offenseScale =
+    (1 + (scale - 1) * MONSTER_OFFENSE_DEPTH_SCALE_WEIGHT) *
+    (1 + (sizeTier.mult - 1) * MONSTER_OFFENSE_SIZE_SCALE_WEIGHT);
+  const defenseScale =
+    (1 + (scale - 1) * MONSTER_DEFENSE_DEPTH_SCALE_WEIGHT) *
+    (1 + (sizeTier.mult - 1) * MONSTER_DEFENSE_SIZE_SCALE_WEIGHT);
   const maxHp = Math.max(1, Math.round((spec.baseHp ?? 18) * hpScale * PLAYER_STAT_SCALE));
-  const atk = Math.max(1, Math.round((spec.baseAtk ?? 6) * hpScale * PLAYER_STAT_SCALE));
+  const atk = Math.max(1, Math.round((spec.baseAtk ?? 6) * offenseScale * PLAYER_STAT_SCALE));
   const atkLo = Math.max(1, Math.round(atk * 0.82));
   const atkHi = Math.max(atkLo, Math.round(atk * 1.18));
-  const def = Math.max(0, Math.round((spec.baseDef ?? 1) * hpScale * PLAYER_STAT_SCALE));
+  const def = Math.max(0, Math.round((spec.baseDef ?? 1) * defenseScale * PLAYER_STAT_SCALE));
   const acc = clamp(Math.round((spec.baseAcc ?? 70) + depth * 0.15), 8, 98);
   const evaBase = Math.round((spec.baseEva ?? 8) + depth * 0.12);
   const eva = clamp(evaBase - sizePenalty * 5, 0, 88);
@@ -2196,6 +2218,8 @@ function monsterStatsForDepth(type, z) {
     sizeTier: sizeTier.id,
     sizeMult: sizeTier.mult,
     depthScale: scale,
+    offenseScale,
+    defenseScale,
     maxHp,
     atk,
     atkLo,
@@ -4944,6 +4968,12 @@ function hpGainForLevel(level) {
   return (4 + Math.floor((lv - 1) / 4)) * PLAYER_STAT_SCALE;
 }
 
+function playerLevelScale(level) {
+  const lv = Math.max(1, Math.floor(level ?? 1));
+  // Mirror monster depth scaling so player HP progression tracks deeper-floor lethality.
+  return monsterDepthScale(Math.max(0, lv - 1));
+}
+
 function maxHpForLevel(level, profile = null) {
   const lv = Math.max(1, Math.floor(level));
   const char = normalizeCharacterProfile(profile ?? null);
@@ -4951,7 +4981,7 @@ function maxHpForLevel(level, profile = null) {
   const classDef = characterClassDef(char.classId);
   const vit = Math.max(0, Math.floor(char.stats?.vit ?? DEFAULT_CHARACTER_STATS.vit));
   const hpMult = (species.hpMult ?? 1) * (classDef.hpMult ?? 1);
-  let hp = Math.max(1, Math.round((70 + vit * 18) * PLAYER_STAT_SCALE * hpMult));
+  let hp = Math.max(1, Math.round((70 + vit * 18) * PLAYER_STAT_SCALE * hpMult * playerLevelScale(lv)));
   for (let l = 2; l <= lv; l++) hp += hpGainForLevel(l);
   return hp;
 }
@@ -5005,17 +5035,17 @@ function recalcDerivedStats(state) {
     .reduce((s, e) => s + e.atkDelta, 0);
   const weaponAtk = weapon?.atkBonus ?? 0;
   const armorRaw = (headArmor?.defBonus ?? 0) + (chestArmor?.defBonus ?? 0) + (legsArmor?.defBonus ?? 0);
-  const baseAtk = Math.max(1, Math.round((8 + str * 4) * PLAYER_STAT_SCALE));
-  const baseDef = Math.max(0, Math.round(vit * PLAYER_STAT_SCALE));
+  const level = Math.max(1, Math.floor(p.level ?? 1));
+  const levelScale = playerLevelScale(level);
+  const offenseScale = 1 + (levelScale - 1) * PLAYER_OFFENSE_LEVEL_SCALE_WEIGHT;
+  const defenseScale = 1 + (levelScale - 1) * PLAYER_DEFENSE_LEVEL_SCALE_WEIGHT;
+  const baseAtk = Math.max(1, Math.round((8 + str * 4) * PLAYER_STAT_SCALE * offenseScale));
+  const baseDef = Math.max(0, Math.round(vit * PLAYER_STAT_SCALE * defenseScale));
   const baseAcc = 70 + dex * 3;
   const baseEva = 8 + dex * 2 + agi;
   const baseSpd = 1 + agi * 0.03;
-  const hpMult = (species.hpMult ?? 1) * (classDef.hpMult ?? 1);
   const armorEffect = (species.armorEffect ?? 1) * (classDef.armorEffect ?? 1);
-  const staticHp = Math.max(1, Math.round((70 + vit * 18) * PLAYER_STAT_SCALE * hpMult));
-  let levelHp = 0;
-  for (let l = 2; l <= Math.max(1, Math.floor(p.level ?? 1)); l++) levelHp += hpGainForLevel(l);
-  const newMaxHp = Math.max(1, staticHp + levelHp);
+  const newMaxHp = Math.max(1, maxHpForLevel(level, profile));
   const prevMaxHp = Math.max(1, Math.floor(p.maxHp ?? newMaxHp));
   const hpRatio = clamp((p.hp ?? newMaxHp) / prevMaxHp, 0, 1);
   p.maxHp = newMaxHp;
@@ -7313,7 +7343,8 @@ function drawCombatHudOverlay(ctx2d, state, nowMs = Date.now()) {
     const cx = viewRadiusX * TILE + TILE / 2;
     const cy = viewRadiusY * TILE + TILE / 2;
     const playerSize = scaledSpriteSize(PLAYER_SPRITE_SIZE, "hero");
-    drawCombatHealthBar(ctx2d, cx, cy, playerSize, p.hp, p.maxHp, "#52e07a");
+    const playerExtraLiftPx = Math.round(TILE * PLAYER_COMBAT_HP_BAR_EXTRA_LIFT_FRAC);
+    drawCombatHealthBar(ctx2d, cx, cy, playerSize, p.hp, p.maxHp, "#52e07a", playerExtraLiftPx);
   }
 
   for (const [monsterId, expiresAt] of Object.entries(combat.hudTargets)) {
@@ -8029,38 +8060,21 @@ function buildSpriteObjectCatalog() {
   }
   out.push(...characterSpriteCatalogEntries());
 
-  const materialTierIndexForSpriteEntry = (entry) => {
-    const materialId = materialIdFromItemType(entry?.objectId ?? entry?.spriteId ?? "");
-    if (!materialId) return Number.POSITIVE_INFINITY;
-    const idx = METAL_TIERS.findIndex((tier) => tier.id === materialId);
-    return idx >= 0 ? idx : Number.POSITIVE_INFINITY;
-  };
-  const weaponKindOrder = { dagger: 1, sword: 2, axe: 3 };
-  const armorSlotOrder = { head: 1, chest: 2, legs: 3 };
-
   out.sort((a, b) => {
     const ac = SPRITE_CATEGORY_SORT[a.category] ?? 99;
     const bc = SPRITE_CATEGORY_SORT[b.category] ?? 99;
     if (ac !== bc) return ac - bc;
 
-    // Equipment entries: sort by material tier progression first.
-    if ((a.category === "weapon" || a.category === "armor") && (b.category === "weapon" || b.category === "armor")) {
-      const at = materialTierIndexForSpriteEntry(a);
-      const bt = materialTierIndexForSpriteEntry(b);
-      if (at !== bt) return at - bt;
+    if (a.category === "monster" && b.category === "monster") {
+      const ahp = Math.max(0, Math.floor(MONSTER_TYPES[a.objectId]?.baseHp ?? 0));
+      const bhp = Math.max(0, Math.floor(MONSTER_TYPES[b.objectId]?.baseHp ?? 0));
+      if (ahp !== bhp) return bhp - ahp;
+    }
 
-      if (a.category === "weapon" && b.category === "weapon") {
-        const ak = String(a.objectId ?? "").split("_").pop() ?? "";
-        const bk = String(b.objectId ?? "").split("_").pop() ?? "";
-        const ao = weaponKindOrder[ak] ?? 99;
-        const bo = weaponKindOrder[bk] ?? 99;
-        if (ao !== bo) return ao - bo;
-      }
-      if (a.category === "armor" && b.category === "armor") {
-        const ao = armorSlotOrder[a.armorType] ?? 99;
-        const bo = armorSlotOrder[b.armorType] ?? 99;
-        if (ao !== bo) return ao - bo;
-      }
+    if ((a.category === "weapon" || a.category === "armor") && (b.category === "weapon" || b.category === "armor")) {
+      const av = itemMarketValue(a.objectId ?? a.spriteId ?? "");
+      const bv = itemMarketValue(b.objectId ?? b.spriteId ?? "");
+      if (av !== bv) return bv - av;
     }
 
     return (a.objectId ?? "").localeCompare(b.objectId ?? "");
@@ -8474,6 +8488,37 @@ function filteredSpriteEditorObjects() {
   });
 }
 
+function pruneSpriteEditorSelection() {
+  const validIds = new Set(
+    (spriteEditorUi.objects ?? [])
+      .map((entry) => String(entry?.spriteId ?? ""))
+      .filter(Boolean)
+  );
+  for (const spriteId of spriteEditorUi.selectedSpriteIds) {
+    if (!validIds.has(spriteId)) spriteEditorUi.selectedSpriteIds.delete(spriteId);
+  }
+}
+
+function updateSpriteEditorBulkControls(entries = []) {
+  const visibleIds = [...new Set(entries.map((entry) => String(entry?.spriteId ?? "")).filter(Boolean))];
+  const selectedVisibleCount = visibleIds.filter((id) => spriteEditorUi.selectedSpriteIds.has(id)).length;
+  const allVisibleSelected = visibleIds.length > 0 && selectedVisibleCount === visibleIds.length;
+  const selectedTotal = spriteEditorUi.selectedSpriteIds.size;
+
+  if (spriteSelectAllEl) {
+    spriteSelectAllEl.indeterminate = selectedVisibleCount > 0 && !allVisibleSelected;
+    spriteSelectAllEl.checked = allVisibleSelected;
+    spriteSelectAllEl.disabled = spriteEditorUi.loading || visibleIds.length === 0;
+  }
+  if (spriteBulkSetSizeBtnEl) {
+    spriteBulkSetSizeBtnEl.textContent = selectedTotal > 0 ? `Set Selected (${selectedTotal})` : "Set Selected";
+    spriteBulkSetSizeBtnEl.disabled = spriteEditorUi.loading || selectedTotal === 0;
+  }
+  if (spriteBulkScaleInputEl) {
+    spriteBulkScaleInputEl.disabled = spriteEditorUi.loading;
+  }
+}
+
 function isSpriteEditorOverlayOpen() {
   return !!spriteEditorOverlayEl?.classList.contains("show");
 }
@@ -8506,18 +8551,21 @@ function setSpriteEditorOverlayOpen(open) {
 
 function renderSpriteEditorList() {
   if (!spriteEditorListEl) return;
+  pruneSpriteEditorSelection();
   const entries = filteredSpriteEditorObjects();
+  const selectedSig = Array.from(spriteEditorUi.selectedSpriteIds).sort().join("|");
   const signature = `${spriteEditorUi.loading ? 1 : 0}|${entries
     .map((entry) => {
       const display = resolveSpriteDisplayForEntry(entry);
       const scale = spriteScalePercentForId(entry.spriteId);
       return `${entry.objectId}|${entry.spriteId}|${display.spriteId}|${display.sourceType}|${display.hasSprite ? 1 : 0}|${scale}`;
     })
-    .join("::")}`;
+    .join("::")}|${selectedSig}`;
   if (signature === spriteEditorSignature && spriteEditorUi.open) return;
   spriteEditorSignature = signature;
 
   spriteEditorListEl.innerHTML = "";
+  updateSpriteEditorBulkControls(entries);
   if (!entries.length) {
     const empty = document.createElement("div");
     empty.className = "spriteEditorEmpty";
@@ -8530,6 +8578,22 @@ function renderSpriteEditorList() {
     const display = resolveSpriteDisplayForEntry(entry);
     const row = document.createElement("div");
     row.className = "spriteEditorRow";
+    const selected = spriteEditorUi.selectedSpriteIds.has(entry.spriteId);
+
+    const selectCell = document.createElement("label");
+    selectCell.className = "spriteSelectCell";
+    const selectInput = document.createElement("input");
+    selectInput.type = "checkbox";
+    selectInput.className = "spriteSelectInput";
+    selectInput.checked = selected;
+    selectInput.disabled = spriteEditorUi.loading;
+    selectInput.addEventListener("change", () => {
+      if (selectInput.checked) spriteEditorUi.selectedSpriteIds.add(entry.spriteId);
+      else spriteEditorUi.selectedSpriteIds.delete(entry.spriteId);
+      spriteEditorSignature = "";
+      renderSpriteEditorList();
+    });
+    selectCell.appendChild(selectInput);
 
     const preview = document.createElement("div");
     preview.className = "spritePreview";
@@ -8645,6 +8709,7 @@ function renderSpriteEditorList() {
     actions.appendChild(resetScaleBtn);
     actions.appendChild(uploadInput);
 
+    row.appendChild(selectCell);
     row.appendChild(preview);
     row.appendChild(meta);
     row.appendChild(actions);
@@ -8751,6 +8816,52 @@ async function setSpriteScaleForEntry(entry, scalePercent) {
     return true;
   } catch (err) {
     setSpriteEditorStatus(err?.message ?? "Could not update sprite world size.", true);
+    renderSpriteEditorList();
+    return false;
+  } finally {
+    spriteEditorUi.loading = false;
+    renderSpriteEditorList();
+  }
+}
+
+async function setSpriteScaleForSelected(scalePercent) {
+  if (!canUseAdminControls()) return false;
+  const selected = Array.from(spriteEditorUi.selectedSpriteIds);
+  if (!selected.length) return false;
+  const normalized = clamp(Math.floor(Number(scalePercent) || 100), 25, 300);
+  const objectBySpriteId = new Map(
+    (spriteEditorUi.objects ?? [])
+      .filter((entry) => entry?.spriteId && entry?.uploadDir)
+      .map((entry) => [entry.spriteId, entry])
+  );
+  const targets = selected
+    .map((spriteId) => objectBySpriteId.get(spriteId))
+    .filter(Boolean);
+  if (!targets.length) {
+    setSpriteEditorStatus("No valid selected sprites to update.", true);
+    return false;
+  }
+
+  spriteEditorUi.loading = true;
+  setSpriteEditorStatus(`Updating world size for ${targets.length} selected sprite(s)...`, false);
+  renderSpriteEditorList();
+  try {
+    let latestPayload = null;
+    for (const entry of targets) {
+      const form = new FormData();
+      form.append("action", "scale");
+      form.append("sprite_id", entry.spriteId);
+      form.append("category", entry.uploadDir);
+      form.append("scale_percent", `${normalized}`);
+      latestPayload = await spriteApiRequest("POST", form);
+    }
+    if (latestPayload) applySpritePayload(latestPayload);
+    setSpriteEditorStatus(`World size set to ${normalized}% for ${targets.length} sprite(s).`, false);
+    renderInfoOverlay(game);
+    renderSpriteEditorList();
+    return true;
+  } catch (err) {
+    setSpriteEditorStatus(err?.message ?? "Could not update selected sprite world sizes.", true);
     renderSpriteEditorList();
     return false;
   } finally {
@@ -9877,6 +9988,27 @@ spriteFilterSourceEl?.addEventListener("change", () => {
 spriteFilterSearchEl?.addEventListener("input", () => {
   spriteEditorSignature = "";
   renderSpriteEditorList();
+});
+spriteSelectAllEl?.addEventListener("change", () => {
+  const entries = filteredSpriteEditorObjects();
+  const visibleIds = [...new Set(entries.map((entry) => String(entry?.spriteId ?? "")).filter(Boolean))];
+  if (spriteSelectAllEl.checked) {
+    for (const id of visibleIds) spriteEditorUi.selectedSpriteIds.add(id);
+  } else {
+    for (const id of visibleIds) spriteEditorUi.selectedSpriteIds.delete(id);
+  }
+  spriteEditorSignature = "";
+  renderSpriteEditorList();
+});
+spriteBulkSetSizeBtnEl?.addEventListener("click", () => {
+  const raw = Number(spriteBulkScaleInputEl?.value ?? "");
+  if (!Number.isFinite(raw)) {
+    setSpriteEditorStatus("Bulk world size must be a number between 25 and 300.", true);
+    return;
+  }
+  const value = clamp(Math.floor(raw), 25, 300);
+  if (spriteBulkScaleInputEl && value !== raw) spriteBulkScaleInputEl.value = `${value}`;
+  void setSpriteScaleForSelected(value);
 });
 saveGameCloseBtnEl?.addEventListener("click", () => {
   closeSaveGameOverlay();

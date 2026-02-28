@@ -2833,13 +2833,16 @@ if (!is_string($spriteOverridesJson)) {
         padding: 8px 14px;
         border-bottom: 1px solid #1f2a40;
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+        grid-template-columns: repeat(6, minmax(0, 1fr)) auto;
         gap: 8px;
         align-items: center;
       }
       .spriteCtrl {
         display: grid;
         gap: 4px;
+      }
+      .spriteCtrlWide {
+        grid-column: span 2;
       }
       .spriteCtrlLabel {
         font-size: 11px;
@@ -2857,6 +2860,44 @@ if (!is_string($spriteOverridesJson)) {
         color: #e6e6e6;
         padding: 6px 8px;
         font-size: 13px;
+      }
+      .spriteCheckRow {
+        height: 34px;
+        display: flex;
+        align-items: center;
+      }
+      .spriteCheckLabel {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: #d7e4f7;
+        user-select: none;
+      }
+      .spriteBulkSizeRow {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .spriteBulkSizeRow .spriteBulkSizeInput {
+        width: 120px;
+        min-width: 120px;
+        flex: 0 0 120px;
+        height: 34px;
+        border-radius: 8px;
+        border: 1px solid #32415f;
+        background: #0a1220;
+        color: #e6e6e6;
+        padding: 6px 8px;
+        font-size: 13px;
+      }
+      .spriteBulkSizeSuffix {
+        font-size: 12px;
+        color: #b8c6df;
+      }
+      #spriteBulkSetSizeBtn {
+        min-width: 130px;
       }
       #spriteEditorStatus {
         min-height: 1.2em;
@@ -2879,9 +2920,19 @@ if (!is_string($spriteOverridesJson)) {
         background: rgba(12, 18, 30, 0.9);
         padding: 10px;
         display: grid;
-        grid-template-columns: 56px minmax(0, 1fr) auto;
+        grid-template-columns: 26px 56px minmax(0, 1fr) auto;
         gap: 10px;
         align-items: center;
+      }
+      .spriteSelectCell {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .spriteSelectInput {
+        width: 16px;
+        height: 16px;
+        margin: 0;
       }
       .spritePreview {
         width: 56px;
@@ -2982,8 +3033,11 @@ if (!is_string($spriteOverridesJson)) {
         #spriteEditorControls {
           grid-template-columns: 1fr 1fr;
         }
+        .spriteCtrlWide {
+          grid-column: span 2;
+        }
         .spriteEditorRow {
-          grid-template-columns: 56px minmax(0, 1fr);
+          grid-template-columns: 26px 56px minmax(0, 1fr);
         }
         .spriteRowActions {
           grid-column: 1 / -1;
@@ -3948,6 +4002,23 @@ if (!is_string($spriteOverridesJson)) {
           <div class="spriteCtrl">
             <label class="spriteCtrlLabel" for="spriteFilterSearch">Search</label>
             <input id="spriteFilterSearch" type="text" placeholder="name or id" autocomplete="off" />
+          </div>
+          <div class="spriteCtrl">
+            <label class="spriteCtrlLabel" for="spriteSelectAll">Selection</label>
+            <div class="spriteCheckRow">
+              <label class="spriteCheckLabel">
+                <input id="spriteSelectAll" type="checkbox" />
+                <span>Select all visible</span>
+              </label>
+            </div>
+          </div>
+          <div class="spriteCtrl spriteCtrlWide">
+            <label class="spriteCtrlLabel" for="spriteBulkScaleInput">Bulk world size</label>
+            <div class="spriteBulkSizeRow">
+              <input id="spriteBulkScaleInput" class="spriteBulkSizeInput" type="number" min="25" max="300" step="1" value="100" />
+              <span class="spriteBulkSizeSuffix">%</span>
+              <button id="spriteBulkSetSizeBtn" type="button">Set Selected</button>
+            </div>
           </div>
           <button id="spriteEditorRefreshBtn" type="button">Refresh</button>
         </div>
