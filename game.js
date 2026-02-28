@@ -9485,6 +9485,26 @@ function canvasToBlobAsync(canvas, type, quality) {
   });
 }
 
+async function imageFileHasVisiblePixels(file) {
+  const img = await loadImageElementFromFile(file);
+  const sampleW = Math.max(1, Math.min(128, Math.floor(img.naturalWidth || img.width || 1)));
+  const sampleH = Math.max(1, Math.min(128, Math.floor(img.naturalHeight || img.height || 1)));
+  const canvas = document.createElement("canvas");
+  canvas.width = sampleW;
+  canvas.height = sampleH;
+  const cx = canvas.getContext("2d", { alpha: true });
+  if (!cx) return true;
+  cx.clearRect(0, 0, sampleW, sampleH);
+  cx.drawImage(img, 0, 0, sampleW, sampleH);
+  const pixels = cx.getImageData(0, 0, sampleW, sampleH).data;
+  if (!pixels.length) return false;
+  for (let i = 0; i < pixels.length; i += 4) {
+    const a = pixels[i + 3] ?? 0;
+    if (a > 0) return true;
+  }
+  return false;
+}
+
 async function compressSpriteUploadFile(file, targetBytes) {
   if (!Number.isFinite(file?.size)) return file;
   const img = await loadImageElementFromFile(file);
@@ -9495,10 +9515,33 @@ async function compressSpriteUploadFile(file, targetBytes) {
   if (!cx) throw new Error("Could not create image compression canvas.");
 
   const baseName = String(file.name || "sprite").replace(/\.[^.]+$/, "") || "sprite";
-  let bestBlob = null;
-  let bestW = srcW;
-  let bestH = srcH;
+  let bestFile = null;
+  let bestBytes = Number.POSITIVE_INFINITY;
   let bestSizeDiff = Number.POSITIVE_INFINITY;
+  const failures = [];
+
+  async function encodeCandidate(drawW, drawH, type, quality = 0.82) {
+    try {
+      canvas.width = drawW;
+      canvas.height = drawH;
+      cx.clearRect(0, 0, drawW, drawH);
+      cx.imageSmoothingEnabled = true;
+      cx.imageSmoothingQuality = "high";
+      cx.drawImage(img, 0, 0, drawW, drawH);
+      const blob = await canvasToBlobAsync(canvas, type, quality);
+      const ext = type === "image/png" ? "png" : (type === "image/jpeg" ? "jpg" : "webp");
+      const out = new File([blob], `${baseName}.${ext}`, { type });
+      const hasVisiblePixels = await imageFileHasVisiblePixels(out);
+      if (!hasVisiblePixels) {
+        failures.push(`${type}:blank`);
+        return null;
+      }
+      return out;
+    } catch (err) {
+      failures.push(`${type}:error`);
+      return null;
+    }
+  }
 
   const maxAttempts = 10;
   for (let i = 0; i < maxAttempts; i++) {
@@ -9507,32 +9550,34 @@ async function compressSpriteUploadFile(file, targetBytes) {
     const drawW = Math.max(64, Math.floor(srcW * downscaleFactor));
     const drawH = Math.max(64, Math.floor(srcH * downscaleFactor));
 
-    canvas.width = drawW;
-    canvas.height = drawH;
-    cx.clearRect(0, 0, drawW, drawH);
-    cx.imageSmoothingEnabled = true;
-    cx.imageSmoothingQuality = "high";
-    cx.drawImage(img, 0, 0, drawW, drawH);
+    // Try WEBP first for size efficiency, then PNG/JPEG fallbacks.
+    let outFile = await encodeCandidate(drawW, drawH, "image/webp", quality);
+    if (!outFile) {
+      outFile = await encodeCandidate(drawW, drawH, "image/png", quality);
+    }
+    if (!outFile) {
+      outFile = await encodeCandidate(drawW, drawH, "image/jpeg", quality);
+    }
+    if (!outFile) continue;
 
-    const blob = await canvasToBlobAsync(canvas, "image/webp", quality);
-    const sizeDiff = Math.abs(blob.size - targetBytes);
-    if (!bestBlob || sizeDiff < bestSizeDiff || blob.size < bestBlob.size) {
-      bestBlob = blob;
-      bestW = drawW;
-      bestH = drawH;
+    const sizeDiff = Math.abs(outFile.size - targetBytes);
+    if (!bestFile || sizeDiff < bestSizeDiff || outFile.size < bestBytes) {
+      bestFile = outFile;
+      bestBytes = outFile.size;
       bestSizeDiff = sizeDiff;
     }
-    if (blob.size <= targetBytes) {
-      bestBlob = blob;
-      bestW = drawW;
-      bestH = drawH;
+    if (outFile.size <= targetBytes) {
+      bestFile = outFile;
       break;
     }
   }
 
-  if (!bestBlob) throw new Error("Could not compress image.");
-  if (file.size <= targetBytes && bestBlob.size >= file.size) return file;
-  return new File([bestBlob], `${baseName}.webp`, { type: "image/webp" });
+  if (!bestFile) {
+    const failureSummary = failures.length ? failures.join(", ") : "unknown";
+    throw new Error(`Could not compress image. Attempts failed: ${failureSummary}`);
+  }
+  if (file.size <= targetBytes && bestFile.size >= file.size) return file;
+  return bestFile;
 }
 
 function updateSpriteEditorFilterControls() {
@@ -9851,20 +9896,58 @@ async function uploadSpriteForEntry(entry, file) {
   renderSpriteEditorList();
   try {
     if (uploadFile.size > maxUploadBytes) {
-      const targetText = formatBytesCompact(maxUploadBytes);
-      const outText = formatBytesCompact(uploadFile.size);
-      throw new Error(`Sprite is too large (${outText}; max ${targetText}).`);
+      const initialTargetBytes = Math.max(
+        120_000,
+        Math.min(CLIENT_SPRITE_UPLOAD_SOFT_TARGET_BYTES, Math.floor(maxUploadBytes * 0.9))
+      );
+      setSpriteEditorStatus(`Sprite is oversized. Compressing for ${entry.objectId}...`, false);
+      renderSpriteEditorList();
+      uploadFile = await compressSpriteUploadFile(uploadFile, initialTargetBytes);
+      if (uploadFile.size > maxUploadBytes) {
+        const targetText = formatBytesCompact(maxUploadBytes);
+        const outText = formatBytesCompact(uploadFile.size);
+        throw new Error(`Compressed sprite is still too large (${outText}; max ${targetText}).`);
+      }
     }
     const originalSizeText = formatBytesCompact(uploadFile.size);
     setSpriteEditorStatus(`Uploading original sprite (${originalSizeText})...`, false);
     renderSpriteEditorList();
 
-    const form = new FormData();
+    let form = new FormData();
     form.append("action", "upload");
     form.append("sprite_id", entry.spriteId);
     form.append("category", entry.uploadDir);
     form.append("sprite_file", uploadFile);
-    const data = await spriteApiRequest("POST", form);
+    let data = null;
+    try {
+      data = await spriteApiRequest("POST", form);
+    } catch (err) {
+      const msg = String(err?.message || "");
+      const is413 = msg.includes("(413)") || msg.includes("too large");
+      if (!is413) throw err;
+
+      const emergencyTarget = Math.max(
+        96_000,
+        Math.min(CLIENT_SPRITE_UPLOAD_RETRY_TARGET_BYTES, Math.floor(uploadFile.size * 0.65))
+      );
+      if (uploadFile.size <= emergencyTarget) throw err;
+      setSpriteEditorStatus("Server rejected size. Applying stronger compression...", false);
+      renderSpriteEditorList();
+      uploadFile = await compressSpriteUploadFile(uploadFile, emergencyTarget);
+
+      if (uploadFile.size > maxUploadBytes) {
+        const targetText = formatBytesCompact(maxUploadBytes);
+        const outText = formatBytesCompact(uploadFile.size);
+        throw new Error(`Compressed sprite is still too large (${outText}; max ${targetText}).`);
+      }
+
+      form = new FormData();
+      form.append("action", "upload");
+      form.append("sprite_id", entry.spriteId);
+      form.append("category", entry.uploadDir);
+      form.append("sprite_file", uploadFile);
+      data = await spriteApiRequest("POST", form);
+    }
     applySpritePayload(data);
     const uploadedUrl = String(data?.url || spriteOverrideState.overrides?.[entry.spriteId] || "");
     await verifySpriteAssetUrlLoad(uploadedUrl);
