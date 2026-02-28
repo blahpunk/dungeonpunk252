@@ -1,0 +1,9 @@
+{
+    "version": 1,
+    "scale": {
+        "giant_spider": 135,
+        "hero": 150,
+        "rat": 125,
+        "skeleton": 175
+    }
+}
