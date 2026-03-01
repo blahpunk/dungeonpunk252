@@ -188,24 +188,26 @@ const LEVEL_UP_ATTRIBUTE_POINTS = 1;
 const PLAYER_STAT_SCALE = 10;
 const PLAYER_PROGRESSION_CURVE_LEVEL = 30;
 const PLAYER_OFFENSE_LEVEL_WEIGHT_EARLY = 0.62;
-const PLAYER_OFFENSE_LEVEL_WEIGHT_LATE = 1.55;
+const PLAYER_OFFENSE_LEVEL_WEIGHT_LATE = 1.72;
 const PLAYER_DEFENSE_LEVEL_WEIGHT_EARLY = 0.96;
 const PLAYER_DEFENSE_LEVEL_WEIGHT_LATE = 1.58;
 const PLAYER_WEAPON_ATK_SCALE_CURVE_LEVEL = 24;
 const PLAYER_WEAPON_ATK_SCALE_EARLY = 0.52;
-const PLAYER_WEAPON_ATK_SCALE_LATE = 1.1;
-const PLAYER_LEVEL_FLAT_ATK_CURVE_EXP = 1.2;
-const PLAYER_LEVEL_FLAT_ATK_SCALE = 1.0;
+const PLAYER_WEAPON_ATK_SCALE_LATE = 1.24;
+const PLAYER_LEVEL_FLAT_ATK_CURVE_EXP = 1.35;
+const PLAYER_LEVEL_FLAT_ATK_SCALE = 1.6;
 const MONSTER_OFFENSE_SIZE_SCALE_WEIGHT = 0.35;
 const MONSTER_DEFENSE_SIZE_SCALE_WEIGHT = 0.12;
-const MONSTER_OFFENSE_DEPTH_WEIGHT_SHALLOW = 1.12;
-const MONSTER_OFFENSE_DEPTH_WEIGHT_DEEP = 0.92;
-const MONSTER_DEFENSE_DEPTH_WEIGHT_SHALLOW = 0.9;
-const MONSTER_DEFENSE_DEPTH_WEIGHT_DEEP = 0.28;
+const MONSTER_OFFENSE_DEPTH_WEIGHT_SHALLOW = 1.2;
+const MONSTER_OFFENSE_DEPTH_WEIGHT_DEEP = 0.72;
+const MONSTER_DEFENSE_DEPTH_WEIGHT_SHALLOW = 0.92;
+const MONSTER_DEFENSE_DEPTH_WEIGHT_DEEP = 0.14;
 const EARLY_DEPTH_PRESSURE_FADE_DEPTH = 5;
-const EARLY_DEPTH_HP_MULT = 1.22;
-const EARLY_DEPTH_OFFENSE_MULT = 1.3;
+const EARLY_DEPTH_HP_MULT = 1.28;
+const EARLY_DEPTH_OFFENSE_MULT = 1.42;
 const EARLY_DEPTH_DEFENSE_MULT = 1.08;
+const PLAYER_DEFENSE_SOFTCAP_BASE = 120;
+const PLAYER_DEFENSE_SOFTCAP_SLOPE = 0.14;
 const MONSTER_MIN_HP_FLOOR_START_DEPTH = 3;
 const MONSTER_MIN_HP_FLOOR_BASE = 40;
 const MONSTER_MIN_HP_FLOOR_PER_DEPTH = 10;
@@ -3146,9 +3148,9 @@ const VOID_ALIGNED_MONSTER_IDS = new Set([
 ]);
 const MONSTER_SIZE_TIERS = [
   { id: "small", depthStart: 0, mult: 1 },
-  { id: "large", depthStart: 3, mult: 1.4 },
-  { id: "giant", depthStart: 7, mult: 1.9 },
-  { id: "hulking", depthStart: 18, mult: 2.7 },
+  { id: "large", depthStart: 3, mult: 1.35 },
+  { id: "giant", depthStart: 7, mult: 1.75 },
+  { id: "hulking", depthStart: 18, mult: 2.3 },
 ];
 function monsterDepthScale(depth) {
   const d = Math.max(0, Math.floor(depth ?? 0));
@@ -7265,7 +7267,11 @@ function playerAttackDamage(state, monster = null, options = null) {
 }
 function reduceIncomingDamage(state, dmg, attackerDepth = null) {
   const depth = clamp(Math.floor(attackerDepth ?? state.player.z ?? 0), 0, 160);
-  const mitigated = applyDefenseMitigation(Math.max(1, Math.floor(dmg ?? 1)), state.player.defBonus ?? 0, 0);
+  const rawDef = Math.max(0, Number(state.player.defBonus ?? 0));
+  const effectiveDef = rawDef <= PLAYER_DEFENSE_SOFTCAP_BASE
+    ? rawDef
+    : (PLAYER_DEFENSE_SOFTCAP_BASE + (rawDef - PLAYER_DEFENSE_SOFTCAP_BASE) * PLAYER_DEFENSE_SOFTCAP_SLOPE);
+  const mitigated = applyDefenseMitigation(Math.max(1, Math.floor(dmg ?? 1)), effectiveDef, 0);
   const flatReduction = Math.max(0, Math.floor(state.player.incomingDamageFlat ?? 0));
   let reduced = Math.max(1, mitigated - flatReduction);
   // Keep encounters threatening as HP/DEF rise by enforcing a depth-scaled minimum chip.
