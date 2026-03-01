@@ -186,14 +186,29 @@ const CHARACTER_CREATION_MAX_STAT = 6;
 const CHARACTER_STAT_MAX = 40;
 const LEVEL_UP_ATTRIBUTE_POINTS = 1;
 const PLAYER_STAT_SCALE = 10;
-const PLAYER_OFFENSE_LEVEL_SCALE_WEIGHT = 1.35;
-const PLAYER_DEFENSE_LEVEL_SCALE_WEIGHT = 1.2;
+const PLAYER_PROGRESSION_CURVE_LEVEL = 30;
+const PLAYER_OFFENSE_LEVEL_WEIGHT_EARLY = 0.78;
+const PLAYER_OFFENSE_LEVEL_WEIGHT_LATE = 1.55;
+const PLAYER_DEFENSE_LEVEL_WEIGHT_EARLY = 0.96;
+const PLAYER_DEFENSE_LEVEL_WEIGHT_LATE = 1.58;
+const PLAYER_WEAPON_ATK_SCALE_CURVE_LEVEL = 24;
+const PLAYER_WEAPON_ATK_SCALE_EARLY = 0.68;
+const PLAYER_WEAPON_ATK_SCALE_LATE = 1.12;
+const PLAYER_LEVEL_FLAT_ATK_CURVE_EXP = 1.2;
+const PLAYER_LEVEL_FLAT_ATK_SCALE = 1.2;
 const MONSTER_OFFENSE_SIZE_SCALE_WEIGHT = 0.35;
 const MONSTER_DEFENSE_SIZE_SCALE_WEIGHT = 0.12;
 const MONSTER_OFFENSE_DEPTH_WEIGHT_SHALLOW = 1.02;
 const MONSTER_OFFENSE_DEPTH_WEIGHT_DEEP = 0.72;
 const MONSTER_DEFENSE_DEPTH_WEIGHT_SHALLOW = 0.9;
 const MONSTER_DEFENSE_DEPTH_WEIGHT_DEEP = 0.28;
+const EARLY_DEPTH_PRESSURE_FADE_DEPTH = 5;
+const EARLY_DEPTH_HP_MULT = 1.22;
+const EARLY_DEPTH_OFFENSE_MULT = 1.16;
+const EARLY_DEPTH_DEFENSE_MULT = 1.08;
+const MONSTER_MIN_HP_FLOOR_START_DEPTH = 3;
+const MONSTER_MIN_HP_FLOOR_BASE = 40;
+const MONSTER_MIN_HP_FLOOR_PER_DEPTH = 10;
 const BASE_POTION_CAPACITY = 5;
 const DEFAULT_CHARACTER_STATS = { vit: 2, str: 3, dex: 2, int: 1, agi: 2 };
 const CHARACTER_CREATION_DRAFT_STATS = { vit: 0, str: 0, dex: 0, int: 0, agi: 0 };
@@ -1878,6 +1893,7 @@ function applyVisibilityBoostToTheme(theme) {
 }
 function choice(rng, arr) { return arr[Math.floor(rng() * arr.length)]; }
 function clamp(n, lo, hi) { return Math.max(lo, Math.min(hi, n)); }
+function lerp(a, b, t) { return a + (b - a) * t; }
 const SPECIES_ID_ALIASES = {
   dwarf: "automaton",
   elf: "grey",
@@ -3032,12 +3048,12 @@ const MONSTER_TYPES = {
   skeleton: {
     id: "skeleton",
     name: "Skeleton",
-    baseHp: 40, baseAtk: 11, baseDef: 5, baseAcc: 68, baseEva: 8, spd: 0.95, xp: 6, glyph: "k", sizeGrowth: true,
+    baseHp: 48, baseAtk: 13, baseDef: 6, baseAcc: 70, baseEva: 8, spd: 0.95, xp: 6, glyph: "k", sizeGrowth: true,
   },
   goblin: {
     id: "goblin",
     name: "Goblin",
-    baseHp: 33, baseAtk: 13, baseDef: 3, baseAcc: 74, baseEva: 14, spd: 1.1, xp: 7, glyph: "g", sizeGrowth: true,
+    baseHp: 40, baseAtk: 15, baseDef: 4, baseAcc: 75, baseEva: 14, spd: 1.1, xp: 7, glyph: "g", sizeGrowth: true,
   },
   archer: {
     id: "archer",
@@ -3154,6 +3170,14 @@ function resolveMonsterSpec(type) {
   }
   return base;
 }
+
+function monsterMinHpFloorForDepth(depth) {
+  const d = Math.max(0, Math.floor(depth ?? 0));
+  if (d < MONSTER_MIN_HP_FLOOR_START_DEPTH) return 0;
+  const floorLegacy = MONSTER_MIN_HP_FLOOR_BASE + d * MONSTER_MIN_HP_FLOOR_PER_DEPTH;
+  return Math.max(1, Math.round(floorLegacy * PLAYER_STAT_SCALE));
+}
+
 function monsterStatsForDepth(type, z) {
   const spec = resolveMonsterSpec(type);
   const depth = Math.max(0, Math.floor(z ?? 0));
@@ -3173,11 +3197,17 @@ function monsterStatsForDepth(type, z) {
   const defenseScale =
     (1 + (scale - 1) * defenseDepthWeight) *
     (1 + (sizeTier.mult - 1) * MONSTER_DEFENSE_SIZE_SCALE_WEIGHT);
-  const maxHp = Math.max(1, Math.round((spec.baseHp ?? 18) * hpScale * PLAYER_STAT_SCALE));
-  const atk = Math.max(1, Math.round((spec.baseAtk ?? 6) * offenseScale * PLAYER_STAT_SCALE));
+  const earlyDepthPressureT = clamp((EARLY_DEPTH_PRESSURE_FADE_DEPTH - depth) / EARLY_DEPTH_PRESSURE_FADE_DEPTH, 0, 1);
+  const earlyHpMult = 1 + (EARLY_DEPTH_HP_MULT - 1) * earlyDepthPressureT;
+  const earlyOffenseMult = 1 + (EARLY_DEPTH_OFFENSE_MULT - 1) * earlyDepthPressureT;
+  const earlyDefenseMult = 1 + (EARLY_DEPTH_DEFENSE_MULT - 1) * earlyDepthPressureT;
+  const baseHpScaled = Math.round((spec.baseHp ?? 18) * hpScale * earlyHpMult * PLAYER_STAT_SCALE);
+  const hpFloor = monsterMinHpFloorForDepth(depth);
+  const maxHp = Math.max(1, Math.max(baseHpScaled, hpFloor));
+  const atk = Math.max(1, Math.round((spec.baseAtk ?? 6) * offenseScale * earlyOffenseMult * PLAYER_STAT_SCALE));
   const atkLo = Math.max(1, Math.round(atk * 0.82));
   const atkHi = Math.max(atkLo, Math.round(atk * 1.18));
-  const def = Math.max(0, Math.round((spec.baseDef ?? 1) * defenseScale * PLAYER_STAT_SCALE));
+  const def = Math.max(0, Math.round((spec.baseDef ?? 1) * defenseScale * earlyDefenseMult * PLAYER_STAT_SCALE));
   const acc = clamp(Math.round((spec.baseAcc ?? 70) + depth * 0.15), 8, 98);
   const evaBase = Math.round((spec.baseEva ?? 8) + depth * 0.12);
   const eva = clamp(evaBase - sizePenalty * 5, 0, 88);
@@ -3888,33 +3918,33 @@ function monsterTableForDepth(z) {
   const depth = Math.max(0, Math.floor(z ?? 0));
   if (depth <= 1) {
     return [
-      { id: "rat", w: 6 },
-      { id: "goblin", w: 4 },
-      { id: "skeleton", w: 2 },
-      { id: "slime_green", w: 5 },
+      { id: "rat", w: 3 },
+      { id: "goblin", w: 7 },
+      { id: "skeleton", w: 5 },
+      { id: "slime_green", w: 2 },
     ];
   }
   if (depth <= 2) {
     return [
-      { id: "rat", w: 4 },
-      { id: "goblin", w: 5 },
-      { id: "skeleton", w: 3 },
+      { id: "rat", w: 2 },
+      { id: "goblin", w: 6 },
+      { id: "skeleton", w: 5 },
       { id: "archer", w: 2 },
       { id: "dire_wolf", w: 2 },
-      { id: "slime_green", w: 3 },
-      { id: "slime_yellow", w: 3 },
+      { id: "slime_green", w: 2 },
+      { id: "slime_yellow", w: 2 },
     ];
   }
   if (depth <= 4) {
     return [
       { id: "goblin", w: 4 },
-      { id: "skeleton", w: 3 },
+      { id: "skeleton", w: 4 },
       { id: "archer", w: 3 },
       { id: "dire_wolf", w: 3 },
-      { id: "giant_spider", w: 2 },
-      { id: "hobgoblin", w: 2 },
-      { id: "slime_yellow", w: 4 },
-      { id: "slime_orange", w: 2 },
+      { id: "giant_spider", w: 3 },
+      { id: "hobgoblin", w: 3 },
+      { id: "slime_yellow", w: 1 },
+      { id: "slime_orange", w: 1 },
     ];
   }
   if (depth <= 6) {
@@ -5374,7 +5404,7 @@ async function handleCharacterOverlayTertiary() {
 async function startCharacterFlow() {
   if (!characterOverlayEl) return;
   setCharacterOverlayStatus("");
-  if (bootLoadedFromLocalSave) {
+  if (bootLoadedFromLocalSave && isAuthenticatedUser) {
     setCharacterOverlayOpen(false);
     return;
   }
@@ -5956,6 +5986,34 @@ function playerLevelScale(level) {
   return monsterDepthScale(Math.max(0, lv - 1));
 }
 
+function progressionCurveT(level, maxLevel = PLAYER_PROGRESSION_CURVE_LEVEL) {
+  const lv = Math.max(1, Math.floor(level ?? 1));
+  const maxLv = Math.max(2, Math.floor(maxLevel ?? PLAYER_PROGRESSION_CURVE_LEVEL));
+  return clamp((lv - 1) / (maxLv - 1), 0, 1);
+}
+
+function playerOffenseLevelWeight(level) {
+  return lerp(PLAYER_OFFENSE_LEVEL_WEIGHT_EARLY, PLAYER_OFFENSE_LEVEL_WEIGHT_LATE, progressionCurveT(level, PLAYER_PROGRESSION_CURVE_LEVEL));
+}
+
+function playerDefenseLevelWeight(level) {
+  return lerp(PLAYER_DEFENSE_LEVEL_WEIGHT_EARLY, PLAYER_DEFENSE_LEVEL_WEIGHT_LATE, progressionCurveT(level, PLAYER_PROGRESSION_CURVE_LEVEL));
+}
+
+function playerWeaponAtkScale(level) {
+  return lerp(
+    PLAYER_WEAPON_ATK_SCALE_EARLY,
+    PLAYER_WEAPON_ATK_SCALE_LATE,
+    progressionCurveT(level, PLAYER_WEAPON_ATK_SCALE_CURVE_LEVEL)
+  );
+}
+
+function playerFlatAtkBonus(level) {
+  const lv = Math.max(1, Math.floor(level ?? 1));
+  const scaled = Math.pow(Math.max(0, lv - 1), PLAYER_LEVEL_FLAT_ATK_CURVE_EXP) * PLAYER_STAT_SCALE * PLAYER_LEVEL_FLAT_ATK_SCALE;
+  return Math.max(0, Math.round(scaled));
+}
+
 function maxHpForLevel(level, profile = null) {
   const lv = Math.max(1, Math.floor(level));
   const char = normalizeCharacterProfile(profile ?? null);
@@ -6019,13 +6077,14 @@ function recalcDerivedStats(state) {
   const armorRaw = (headArmor?.defBonus ?? 0) + (chestArmor?.defBonus ?? 0) + (legsArmor?.defBonus ?? 0);
   const level = Math.max(1, Math.floor(p.level ?? 1));
   const levelScale = playerLevelScale(level);
-  const offenseScale = 1 + (levelScale - 1) * PLAYER_OFFENSE_LEVEL_SCALE_WEIGHT;
-  const defenseScale = 1 + (levelScale - 1) * PLAYER_DEFENSE_LEVEL_SCALE_WEIGHT;
-  const baseAtk = Math.max(1, Math.round((8 + str * 4) * PLAYER_STAT_SCALE * offenseScale));
+  const offenseScale = 1 + (levelScale - 1) * playerOffenseLevelWeight(level);
+  const defenseScale = 1 + (levelScale - 1) * playerDefenseLevelWeight(level);
+  const baseAtk = Math.max(1, Math.round((8 + str * 4) * PLAYER_STAT_SCALE * offenseScale + playerFlatAtkBonus(level)));
   const baseDef = Math.max(0, Math.round(vit * PLAYER_STAT_SCALE * defenseScale));
   const baseAcc = 70 + dex * 3;
   const baseEva = 8 + dex * 2 + agi;
   const baseSpd = 1 + agi * 0.03;
+  const weaponAtkScale = Math.max(0.1, playerWeaponAtkScale(level));
   const armorEffect = (species.armorEffect ?? 1) * (classDef.armorEffect ?? 1);
   const energyMult = Math.max(0.1, (species.energyMult ?? 1) * (classDef.energyMult ?? 1));
   const energyFlat = Math.floor((species.energyFlat ?? 0) + (classDef.energyFlat ?? 0));
@@ -6038,6 +6097,7 @@ function recalcDerivedStats(state) {
   p.baseAtk = baseAtk;
   p.baseDef = baseDef;
   p.weaponAtkBonus = weaponAtk;
+  p.weaponAtkScale = weaponAtkScale;
   p.effectAtkBonus = effAtk;
   p.atkBonus = weaponAtk + effAtk;
   p.atkLo = Math.max(1, Math.round(baseAtk * 0.86));
@@ -7166,8 +7226,9 @@ function playerAttackDamage(state, monster = null, options = null) {
   const baseRoll = baseLo + Math.floor(Math.random() * (baseHi - baseLo + 1));
   const weaponAtk = Math.floor(p.weaponAtkBonus ?? 0);
   const effectAtk = Math.floor(p.effectAtkBonus ?? 0);
+  const weaponScale = Math.max(0.1, Number(p.weaponAtkScale ?? 1));
   const scaledWeaponAtk = weaponAtk >= 0
-    ? Math.round(weaponAtk * (p.weaponDamageMult ?? 1))
+    ? Math.round(weaponAtk * weaponScale * (p.weaponDamageMult ?? 1))
     : weaponAtk;
   let raw = Math.max(1, baseRoll + scaledWeaponAtk + effectAtk);
 
@@ -7373,17 +7434,42 @@ function spawnDynamicItem(state, type, amount, x, y, z) {
   state.entities.set(id, ent);
 }
 
+function chestLootDepthBounds(depth, chest = null) {
+  const d = Math.max(0, Math.floor(depth ?? 0));
+  const isRewardChest = !!chest?.rewardChest;
+  const isLockedChest = !!chest?.locked;
+  const overlevelSoftCap = isRewardChest ? 3 : (isLockedChest ? 2 : 1);
+  const progressionCap = Math.max(1, Math.floor(d * 1.35) + 2);
+  const maxDepth = Math.max(d, Math.min(d + overlevelSoftCap, progressionCap));
+  const minDepth = Math.max(0, d - (isRewardChest ? 0 : 1));
+  return { minDepth, maxDepth };
+}
+
+function normalizeChestLootDepth(depth, chest = null) {
+  const d = Math.max(0, Math.floor(depth ?? 0));
+  const bounds = chestLootDepthBounds(d, chest);
+  const rawDepth = Number(chest?.lootDepth);
+  const fallback = d + (chest?.rewardChest ? 1 : 0);
+  const sourceDepth = Number.isFinite(rawDepth) ? Math.floor(rawDepth) : fallback;
+  return clamp(sourceDepth, bounds.minDepth, bounds.maxDepth);
+}
+
 function dropEquipmentFromChest(state, chest = null) {
-  const z = Math.max(0, state.player.z);
+  const z = Math.max(0, Math.floor(Number(chest?.z ?? state.player.z) || 0));
   const isRewardChest = !!chest?.rewardChest;
   const locked = !!chest?.locked;
-  const baseLootDepth = Math.max(z, Math.floor(Number(chest?.lootDepth ?? z) || z));
-  const depthBias = isRewardChest ? randInt(Math.random, 2, 5) : (locked ? randInt(Math.random, 1, 3) : randInt(Math.random, 0, 2));
-  const lootDepth = clamp(baseLootDepth + depthBias, 0, 160);
+  const bounds = chestLootDepthBounds(z, chest);
+  const baseLootDepth = normalizeChestLootDepth(z, chest);
+  const depthBias = isRewardChest ? randInt(Math.random, 0, 2) : (locked ? randInt(Math.random, 0, 1) : randInt(Math.random, 0, 1));
+  const lootDepth = clamp(baseLootDepth + depthBias, bounds.minDepth, bounds.maxDepth);
 
   const gearRolls = isRewardChest ? randInt(Math.random, 2, 3) : (locked ? randInt(Math.random, 1, 2) : (Math.random() < 0.42 ? 1 : 0));
   for (let i = 0; i < gearRolls; i++) {
-    const rollDepth = lootDepth + randInt(Math.random, 0, isRewardChest ? 4 : 2);
+    const rollDepth = clamp(
+      lootDepth + randInt(Math.random, 0, isRewardChest ? 1 : 0),
+      bounds.minDepth,
+      bounds.maxDepth
+    );
     const drop = Math.random() < 0.58 ? weaponForDepth(rollDepth, Math.random) : armorForDepth(rollDepth, Math.random);
     invAdd(state, drop, 1);
     pushLog(state, `${isRewardChest ? "Reward" : "Found"}: ${ITEM_TYPES[drop].name}.`);
@@ -7399,7 +7485,7 @@ function dropEquipmentFromChest(state, chest = null) {
 
   const keyChance = isRewardChest ? 0.24 : (locked ? 0.18 : 0.08);
   if (Math.random() < keyChance) {
-    const keyDepth = Math.max(z, lootDepth - (locked ? 1 : 0));
+    const keyDepth = clamp(Math.max(z, lootDepth - (locked ? 1 : 0)), bounds.minDepth, bounds.maxDepth);
     const key = keyTypeForDepth(keyDepth, Math.random);
     invAdd(state, key, 1);
     pushLog(state, `${isRewardChest ? "Reward" : "Found"}: ${ITEM_TYPES[key].name}.`);
@@ -7622,7 +7708,7 @@ function pickup(state) {
       }
       pushLog(state, `You use the ${ITEM_TYPES[keyType].name} and open the Chest.`);
     }
-    const chestDepth = Math.max(clamp(p.z, 0, 160), Math.floor(Number(it.lootDepth ?? p.z) || p.z));
+    const chestDepth = normalizeChestLootDepth(Math.max(0, Math.floor(it.z ?? p.z ?? 0)), it);
     const g = 15 + Math.floor(Math.random() * (25 + clamp(chestDepth, 0, 55)));
     p.gold += g;
     pushLog(state, `You open the Chest. (+${g} gold)`);
@@ -9233,15 +9319,13 @@ function renderLevelUpOverlay(state) {
     `</div>`;
   }).join("");
 
-  levelUpCloseBtnEl.textContent = unspent > 0 ? `Done (${unspent} unspent)` : "Done";
+  levelUpCloseBtnEl.textContent = "Confirm";
   levelUpCloseBtnEl.disabled = false;
-  if (unspent <= 0 && isLevelUpOverlayOpen()) closeLevelUpOverlay();
 }
 
 function promptLevelUpOverlay(state, forceOpen = false) {
   const unspent = characterUnspentStatPoints(state);
   if (unspent <= 0) {
-    if (isLevelUpOverlayOpen()) closeLevelUpOverlay();
     return;
   }
   renderLevelUpOverlay(state);

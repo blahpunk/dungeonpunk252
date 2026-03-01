@@ -27,15 +27,15 @@
         "hero_elf_ranger": 150,
         "hero_elf_rogue": 150,
         "hero_elf_skirmisher": 150,
-        "hero_human_alchemist": 150,
-        "hero_human_bulwark": 150,
+        "hero_human_alchemist": 180,
+        "hero_human_bulwark": 180,
         "hero_human_fighter": 150,
         "hero_human_guardian": 150,
-        "hero_human_operative": 150,
-        "hero_human_ranger": 150,
-        "hero_human_rogue": 150,
+        "hero_human_operative": 180,
+        "hero_human_ranger": 180,
+        "hero_human_rogue": 180,
         "hero_human_skirmisher": 150,
-        "hero_human_vanguard": 150,
+        "hero_human_vanguard": 180,
         "hero_orc_alchemist": 150,
         "hero_orc_fighter": 150,
         "hero_orc_guardian": 150,
@@ -49,6 +49,7 @@
         "hero_ratkin_rogue": 150,
         "hero_ratkin_skirmisher": 150,
         "rat": 125,
-        "skeleton": 225
+        "skeleton": 225,
+        "surface_entrance": 180
     }
 }
