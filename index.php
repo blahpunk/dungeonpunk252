@@ -3384,6 +3384,7 @@ if (!is_string($spriteOverridesJson)) {
         display: grid;
         grid-template-rows: auto auto;
         align-items: start;
+        justify-items: center;
         gap: 3px;
         min-width: 0;
       }
@@ -3391,15 +3392,18 @@ if (!is_string($spriteOverridesJson)) {
         border: 1px solid #344766;
         background: linear-gradient(180deg, rgba(40, 57, 88, 0.92) 0%, rgba(24, 35, 55, 0.92) 100%);
         border-radius: 12px;
-        padding: 3px;
-        min-height: 0;
+        padding: 4px;
+        width: 72px;
+        height: 72px;
+        min-width: 72px;
+        min-height: 72px;
         overflow: hidden;
+        box-sizing: border-box;
       }
       .equipBadgeIcon {
         position: relative;
         width: 100%;
-        height: auto;
-        aspect-ratio: 1 / 1;
+        height: 100%;
         min-height: 0;
         min-width: 0;
         display: flex;
@@ -3441,7 +3445,7 @@ if (!is_string($spriteOverridesJson)) {
         white-space: normal;
         overflow-wrap: anywhere;
         word-break: break-word;
-        width: 100%;
+        width: 72px;
       }
       #characterStatsPanel {
         margin-top: 8px;
