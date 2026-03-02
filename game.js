@@ -60,8 +60,16 @@ const SAVE_LOGIN_HANDOFF_KEY = "dungeon25_save_after_login_handoff_v1";
 const XP_SCALE = 100;
 const COMBAT_SCALE = 100;
 const POTION_HEAL_PCT = 0.35;
-const XP_DAMAGE_PER_LEGACY_DAMAGE = 6;
-const XP_KILL_BONUS_PER_MONSTER_XP = 12;
+const XP_DAMAGE_PER_LEGACY_DAMAGE = 4.5;
+const XP_KILL_BONUS_PER_MONSTER_XP = 9;
+const XP_TO_NEXT_EARLY_MULT = 0.32;
+const XP_TO_NEXT_EARLY_FADE_LEVEL = 10;
+const XP_TO_NEXT_LEVEL_RAMP = 0.012;
+const EXPLORATION_XP_ROOM = 18;
+const EXPLORATION_XP_CORRIDOR = 11;
+const EXPLORATION_XP_DEPTH_BASE_MULT = 0.72;
+const EXPLORATION_XP_DEPTH_PER_LEVEL = 0.03;
+const EXPLORATION_XP_DEPTH_BONUS_CAP = 0.36;
 const STAIRS_DOWN_SPAWN_CHANCE = 0.48;
 const STAIRS_UP_SPAWN_CHANCE = 0.40;
 const EDGE_SHADE_PX = Math.max(2, Math.floor(TILE * 0.12));
@@ -194,20 +202,26 @@ const PLAYER_DEFENSE_LEVEL_WEIGHT_LATE = 1.58;
 const PLAYER_WEAPON_ATK_SCALE_CURVE_LEVEL = 24;
 const PLAYER_WEAPON_ATK_SCALE_EARLY = 0.52;
 const PLAYER_WEAPON_ATK_SCALE_LATE = 1.24;
-const PLAYER_LEVEL_FLAT_ATK_CURVE_EXP = 1.35;
-const PLAYER_LEVEL_FLAT_ATK_SCALE = 1.6;
+const PLAYER_LEVEL_FLAT_ATK_CURVE_EXP = 1.5;
+const PLAYER_LEVEL_FLAT_ATK_SCALE = 1.05;
 const MONSTER_OFFENSE_SIZE_SCALE_WEIGHT = 0.35;
 const MONSTER_DEFENSE_SIZE_SCALE_WEIGHT = 0.12;
 const MONSTER_OFFENSE_DEPTH_WEIGHT_SHALLOW = 1.2;
-const MONSTER_OFFENSE_DEPTH_WEIGHT_DEEP = 0.72;
+const MONSTER_OFFENSE_DEPTH_WEIGHT_DEEP = 0.78;
 const MONSTER_DEFENSE_DEPTH_WEIGHT_SHALLOW = 0.92;
-const MONSTER_DEFENSE_DEPTH_WEIGHT_DEEP = 0.14;
-const EARLY_DEPTH_PRESSURE_FADE_DEPTH = 5;
-const EARLY_DEPTH_HP_MULT = 1.28;
-const EARLY_DEPTH_OFFENSE_MULT = 1.42;
-const EARLY_DEPTH_DEFENSE_MULT = 1.08;
+const MONSTER_DEFENSE_DEPTH_WEIGHT_DEEP = 0.22;
+const EARLY_DEPTH_PRESSURE_FADE_DEPTH = 8;
+const EARLY_DEPTH_HP_MULT = 1.24;
+const EARLY_DEPTH_OFFENSE_MULT = 1.34;
+const EARLY_DEPTH_DEFENSE_MULT = 1.06;
+const MID_DEPTH_BOOST_START = 4;
+const MID_DEPTH_BOOST_PEAK = 6;
+const MID_DEPTH_BOOST_END = 11;
+const MID_DEPTH_HP_MULT_PEAK = 1.2;
+const MID_DEPTH_OFFENSE_MULT_PEAK = 1.2;
+const MID_DEPTH_DEFENSE_MULT_PEAK = 1.14;
 const PLAYER_DEFENSE_SOFTCAP_BASE = 120;
-const PLAYER_DEFENSE_SOFTCAP_SLOPE = 0.14;
+const PLAYER_DEFENSE_SOFTCAP_SLOPE = 0.08;
 const MONSTER_MIN_HP_FLOOR_START_DEPTH = 3;
 const MONSTER_MIN_HP_FLOOR_BASE = 40;
 const MONSTER_MIN_HP_FLOOR_PER_DEPTH = 10;
@@ -3203,13 +3217,21 @@ function monsterStatsForDepth(type, z) {
   const earlyHpMult = 1 + (EARLY_DEPTH_HP_MULT - 1) * earlyDepthPressureT;
   const earlyOffenseMult = 1 + (EARLY_DEPTH_OFFENSE_MULT - 1) * earlyDepthPressureT;
   const earlyDefenseMult = 1 + (EARLY_DEPTH_DEFENSE_MULT - 1) * earlyDepthPressureT;
-  const baseHpScaled = Math.round((spec.baseHp ?? 18) * hpScale * earlyHpMult * PLAYER_STAT_SCALE);
+  const midDepthPressureT = depth < MID_DEPTH_BOOST_START || depth > MID_DEPTH_BOOST_END
+    ? 0
+    : (depth <= MID_DEPTH_BOOST_PEAK
+      ? clamp((depth - MID_DEPTH_BOOST_START) / Math.max(1, MID_DEPTH_BOOST_PEAK - MID_DEPTH_BOOST_START), 0, 1)
+      : clamp((MID_DEPTH_BOOST_END - depth) / Math.max(1, MID_DEPTH_BOOST_END - MID_DEPTH_BOOST_PEAK), 0, 1));
+  const midHpMult = 1 + (MID_DEPTH_HP_MULT_PEAK - 1) * midDepthPressureT;
+  const midOffenseMult = 1 + (MID_DEPTH_OFFENSE_MULT_PEAK - 1) * midDepthPressureT;
+  const midDefenseMult = 1 + (MID_DEPTH_DEFENSE_MULT_PEAK - 1) * midDepthPressureT;
+  const baseHpScaled = Math.round((spec.baseHp ?? 18) * hpScale * earlyHpMult * midHpMult * PLAYER_STAT_SCALE);
   const hpFloor = monsterMinHpFloorForDepth(depth);
   const maxHp = Math.max(1, Math.max(baseHpScaled, hpFloor));
-  const atk = Math.max(1, Math.round((spec.baseAtk ?? 6) * offenseScale * earlyOffenseMult * PLAYER_STAT_SCALE));
+  const atk = Math.max(1, Math.round((spec.baseAtk ?? 6) * offenseScale * earlyOffenseMult * midOffenseMult * PLAYER_STAT_SCALE));
   const atkLo = Math.max(1, Math.round(atk * 0.82));
   const atkHi = Math.max(atkLo, Math.round(atk * 1.18));
-  const def = Math.max(0, Math.round((spec.baseDef ?? 1) * defenseScale * earlyDefenseMult * PLAYER_STAT_SCALE));
+  const def = Math.max(0, Math.round((spec.baseDef ?? 1) * defenseScale * earlyDefenseMult * midDefenseMult * PLAYER_STAT_SCALE));
   const acc = clamp(Math.round((spec.baseAcc ?? 70) + depth * 0.15), 8, 98);
   const evaBase = Math.round((spec.baseEva ?? 8) + depth * 0.12);
   const eva = clamp(evaBase - sizePenalty * 5, 0, 88);
@@ -5981,7 +6003,12 @@ function invCount(state, type) {
 }
 
 function xpToNext(level) {
-  return (8 + level * 6) * XP_SCALE;
+  const lv = Math.max(1, Math.floor(level ?? 1));
+  const base = (8 + lv * 6) * XP_SCALE;
+  const earlyT = clamp((XP_TO_NEXT_EARLY_FADE_LEVEL - lv) / Math.max(1, XP_TO_NEXT_EARLY_FADE_LEVEL - 1), 0, 1);
+  const earlyMult = 1 + XP_TO_NEXT_EARLY_MULT * earlyT;
+  const levelRampMult = 1 + Math.max(0, lv - 1) * XP_TO_NEXT_LEVEL_RAMP;
+  return Math.max(1, Math.round(base * earlyMult * levelRampMult));
 }
 
 function hpGainForLevel(level) {
@@ -6045,8 +6072,13 @@ function xpKillBonus(monsterType) {
   return base * XP_KILL_BONUS_PER_MONSTER_XP;
 }
 
-function xpExplorationBonus(roomCount, corridorCount) {
-  return Math.max(0, roomCount * 25 + corridorCount * 15);
+function xpExplorationBonus(roomCount, corridorCount, depth = 0) {
+  const rooms = Math.max(0, Math.floor(roomCount ?? 0));
+  const corridors = Math.max(0, Math.floor(corridorCount ?? 0));
+  const d = Math.max(0, Math.floor(depth ?? 0));
+  const base = Math.max(0, rooms * EXPLORATION_XP_ROOM + corridors * EXPLORATION_XP_CORRIDOR);
+  const depthMult = EXPLORATION_XP_DEPTH_BASE_MULT + Math.min(EXPLORATION_XP_DEPTH_BONUS_CAP, d * EXPLORATION_XP_DEPTH_PER_LEVEL);
+  return Math.max(0, Math.round(base * depthMult));
 }
 
 function potionHealAmount(maxHp) {
@@ -7183,7 +7215,7 @@ function maybeGrantExplorationXP(state) {
   const chunk = state.world.getChunk(p.z, cx, cy);
   const rooms = Math.max(0, chunk.explore?.rooms ?? 0);
   const corridors = Math.max(0, chunk.explore?.corridors ?? 0);
-  const xp = xpExplorationBonus(rooms, corridors);
+  const xp = xpExplorationBonus(rooms, corridors, p.z);
   if (xp <= 0) return;
 
   grantXP(state, xp);
