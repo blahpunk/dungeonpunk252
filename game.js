@@ -70,6 +70,29 @@ const EXPLORATION_XP_CORRIDOR = 11;
 const EXPLORATION_XP_DEPTH_BASE_MULT = 0.72;
 const EXPLORATION_XP_DEPTH_PER_LEVEL = 0.03;
 const EXPLORATION_XP_DEPTH_BONUS_CAP = 0.36;
+const XP_KILL_DEPTH_BONUS_PER_DEPTH = 0.025;
+const XP_KILL_DEPTH_BONUS_CAP = 0.5;
+const XP_DAMAGE_REWARD_SHARE = 0.52;
+const XP_CHALLENGE_MIN_MULT = 0.08;
+const XP_CHALLENGE_MAX_MULT = 1.75;
+const XP_LEVEL_DIFF_BONUS_PER_LEVEL = 0.06;
+const XP_LEVEL_DIFF_PENALTY_PER_LEVEL = 0.14;
+const XP_LEVEL_DIFF_BONUS_CAP = 0.55;
+const XP_LEVEL_DIFF_PENALTY_CAP = 0.72;
+const XP_FARM_DEPTH_GRACE = 2;
+const XP_FARM_DEPTH_PENALTY_PER_DEPTH = 0.08;
+const XP_FARM_DEPTH_PENALTY_CAP = 0.7;
+const XP_WEAPON_TIER_OVERGEAR_PENALTY_PER_TIER = 0.17;
+const XP_WEAPON_TIER_UNDERGEAR_BONUS_PER_TIER = 0.08;
+const XP_ARMOR_TIER_OVERGEAR_PENALTY_PER_TIER = 0.08;
+const XP_ARMOR_TIER_UNDERGEAR_BONUS_PER_TIER = 0.04;
+const XP_GEAR_TIER_ADJ_CAP = 0.5;
+const XP_MONSTER_THREAT_BONUS_PER_XP = 0.006;
+const XP_MONSTER_THREAT_BONUS_CAP = 0.18;
+const XP_DEPTH_KILL_SOFTCAP_BASE = 24;
+const XP_DEPTH_KILL_SOFTCAP_PER_DEPTH = 3;
+const XP_DEPTH_KILL_PENALTY_PER_EXTRA = 0.012;
+const XP_DEPTH_KILL_PENALTY_CAP = 0.55;
 const STAIRS_DOWN_SPAWN_CHANCE = 0.48;
 const STAIRS_UP_SPAWN_CHANCE = 0.40;
 const EDGE_SHADE_PX = Math.max(2, Math.floor(TILE * 0.12));
@@ -6062,14 +6085,135 @@ function maxHpForLevel(level, profile = null) {
   return hp;
 }
 
-function xpFromDamage(dmg) {
-  // Normalize combat-scaled damage back to legacy-sized units, then award a modest amount per point.
-  return Math.max(0, Math.floor((dmg / COMBAT_SCALE) * XP_DAMAGE_PER_LEGACY_DAMAGE));
+function materialTierIndexFromId(materialId) {
+  if (!materialId) return -1;
+  return METAL_TIERS.findIndex((tier) => tier.id === materialId);
 }
 
-function xpKillBonus(monsterType) {
-  const base = resolveMonsterSpec(monsterType)?.xp ?? 2;
-  return base * XP_KILL_BONUS_PER_MONSTER_XP;
+function itemMaterialTierIndex(type) {
+  return materialTierIndexFromId(materialIdFromItemType(type));
+}
+
+function expectedMaterialTierIndexForDepth(depth) {
+  const weighted = materialWeightsForDepth(depth);
+  if (!Array.isArray(weighted) || weighted.length <= 0) return 0;
+  let totalW = 0;
+  let weightedTier = 0;
+  for (const entry of weighted) {
+    const idx = materialTierIndexFromId(entry?.id);
+    if (idx < 0) continue;
+    const w = Math.max(0, Number(entry?.w ?? 0));
+    if (w <= 0) continue;
+    totalW += w;
+    weightedTier += idx * w;
+  }
+  if (totalW <= 0) return 0;
+  return weightedTier / totalW;
+}
+
+function playerGearTierProfileForXp(state) {
+  const equip = state?.player?.equip ?? {};
+  const weaponTierRaw = itemMaterialTierIndex(equip.weapon);
+  const weaponTier = weaponTierRaw >= 0 ? weaponTierRaw : 0;
+  const armorTiers = [equip.head, equip.chest, equip.legs]
+    .map((type) => itemMaterialTierIndex(type))
+    .filter((idx) => idx >= 0);
+  const armorTier = armorTiers.length
+    ? (armorTiers.reduce((sum, idx) => sum + idx, 0) / armorTiers.length)
+    : 0;
+  return { weaponTier, armorTier };
+}
+
+function ensureDepthKillCounters(state) {
+  if (!state || typeof state !== "object") return {};
+  if (!state.xpDepthKills || typeof state.xpDepthKills !== "object") state.xpDepthKills = {};
+  return state.xpDepthKills;
+}
+
+function depthKillCountForDepth(state, depth) {
+  const counters = ensureDepthKillCounters(state);
+  const d = Math.max(0, Math.floor(depth ?? 0));
+  return Math.max(0, Math.floor(Number(counters[d] ?? 0) || 0));
+}
+
+function depthKillSoftcap(depth) {
+  const d = Math.max(0, Math.floor(depth ?? 0));
+  return Math.max(1, XP_DEPTH_KILL_SOFTCAP_BASE + d * XP_DEPTH_KILL_SOFTCAP_PER_DEPTH);
+}
+
+function depthKillDiminishingMult(state, depth) {
+  const kills = depthKillCountForDepth(state, depth);
+  const softcap = depthKillSoftcap(depth);
+  if (kills <= softcap) return 1;
+  const extra = kills - softcap;
+  const penalty = Math.min(XP_DEPTH_KILL_PENALTY_CAP, extra * XP_DEPTH_KILL_PENALTY_PER_EXTRA);
+  return Math.max(0.2, 1 - penalty);
+}
+
+function markDepthKillForXp(state, depth) {
+  const counters = ensureDepthKillCounters(state);
+  const d = Math.max(0, Math.floor(depth ?? 0));
+  counters[d] = depthKillCountForDepth(state, d) + 1;
+}
+
+function xpChallengeMultiplier(state, monster = null, monsterSpec = null) {
+  const p = state?.player;
+  if (!p) return 1;
+  const depth = Math.max(0, Math.floor(monster?.z ?? p.z ?? 0));
+  const mSpec = monsterSpec ?? monsterStatsForDepth(monster?.type, depth);
+  const playerLevel = Math.max(1, Math.floor(p.level ?? 1));
+  const monsterLevel = Math.max(1, Math.floor(mSpec?.level ?? (depth + 1)));
+  const levelDelta = monsterLevel - playerLevel;
+  const levelMult = levelDelta >= 0
+    ? (1 + Math.min(XP_LEVEL_DIFF_BONUS_CAP, levelDelta * XP_LEVEL_DIFF_BONUS_PER_LEVEL))
+    : (1 - Math.min(XP_LEVEL_DIFF_PENALTY_CAP, (-levelDelta) * XP_LEVEL_DIFF_PENALTY_PER_LEVEL));
+
+  const profile = state.character ?? ensureCharacterState(state);
+  const deepestDepth = Math.max(depth, Math.floor(profile?.deepestDepth ?? p.z ?? depth));
+  const farmDepthDelta = Math.max(0, deepestDepth - depth - XP_FARM_DEPTH_GRACE);
+  const farmMult = 1 - Math.min(XP_FARM_DEPTH_PENALTY_CAP, farmDepthDelta * XP_FARM_DEPTH_PENALTY_PER_DEPTH);
+
+  const expectedTier = expectedMaterialTierIndexForDepth(depth);
+  const gear = playerGearTierProfileForXp(state);
+  const weaponDelta = gear.weaponTier - expectedTier;
+  const armorDelta = gear.armorTier - expectedTier;
+  let tierAdj = 0;
+  tierAdj += weaponDelta >= 0
+    ? -Math.min(XP_GEAR_TIER_ADJ_CAP, weaponDelta * XP_WEAPON_TIER_OVERGEAR_PENALTY_PER_TIER)
+    : Math.min(XP_GEAR_TIER_ADJ_CAP, -weaponDelta * XP_WEAPON_TIER_UNDERGEAR_BONUS_PER_TIER);
+  tierAdj += armorDelta >= 0
+    ? -Math.min(XP_GEAR_TIER_ADJ_CAP, armorDelta * XP_ARMOR_TIER_OVERGEAR_PENALTY_PER_TIER)
+    : Math.min(XP_GEAR_TIER_ADJ_CAP, -armorDelta * XP_ARMOR_TIER_UNDERGEAR_BONUS_PER_TIER);
+  const gearMult = Math.max(0.2, 1 + clamp(tierAdj, -XP_GEAR_TIER_ADJ_CAP, XP_GEAR_TIER_ADJ_CAP));
+
+  const monsterBaseXp = Math.max(0, mSpec?.xp ?? resolveMonsterSpec(monster?.type)?.xp ?? 2);
+  const threatBonus = Math.min(
+    XP_MONSTER_THREAT_BONUS_CAP,
+    Math.max(0, (monsterBaseXp - 8) * XP_MONSTER_THREAT_BONUS_PER_XP)
+  );
+  const threatMult = 1 + threatBonus;
+  const repeatClearMult = depthKillDiminishingMult(state, depth);
+
+  return clamp(levelMult * farmMult * gearMult * threatMult * repeatClearMult, XP_CHALLENGE_MIN_MULT, XP_CHALLENGE_MAX_MULT);
+}
+
+function xpFromDamage(dmg, monster = null) {
+  const applied = Math.max(0, Math.floor(dmg ?? 0));
+  if (!monster || typeof monster !== "object") {
+    // Normalize combat-scaled damage back to legacy-sized units.
+    return Math.max(0, Math.floor((applied / COMBAT_SCALE) * XP_DAMAGE_PER_LEGACY_DAMAGE));
+  }
+  const maxHp = Math.max(1, Math.floor(monster.maxHp ?? monster.hp ?? 1));
+  const killBudget = xpKillBonus(monster.type, monster.z ?? 0);
+  const hpShare = clamp(applied / maxHp, 0, 1);
+  return Math.max(0, Math.floor(killBudget * XP_DAMAGE_REWARD_SHARE * hpShare));
+}
+
+function xpKillBonus(monsterType, monsterDepth = 0) {
+  const base = Math.max(1, resolveMonsterSpec(monsterType)?.xp ?? 2);
+  const depth = Math.max(0, Math.floor(monsterDepth ?? 0));
+  const depthMult = 1 + Math.min(XP_KILL_DEPTH_BONUS_CAP, depth * XP_KILL_DEPTH_BONUS_PER_DEPTH);
+  return Math.max(1, Math.round(base * XP_KILL_BONUS_PER_MONSTER_XP * depthMult));
 }
 
 function xpExplorationBonus(roomCount, corridorCount, depth = 0) {
@@ -6548,6 +6692,7 @@ function makeNewGame(seedStr = randomSeedString(), options = null) {
     turn: 0,
     visitedDoors: new Set(),
     exploredChunks: new Set(),
+    xpDepthKills: {},
     surfaceLink: null,
     startSpawn: null,
     shop: null,
@@ -7618,12 +7763,15 @@ function playerAttack(state, monster) {
   if (classId === "telekinetic" && firstCombatStrike && monster.hp > 0 && tryKnockbackMonster(state, monster, p.x, p.y)) {
     pushLog(state, `Telekinetic force knocks the ${MONSTER_TYPES[monster.type]?.name ?? monster.type} back.`);
   }
-  grantXP(state, xpFromDamage(Math.max(0, Math.min(dmg, hpBefore))));
+  const damageApplied = Math.max(0, Math.min(dmg, hpBefore));
+  const xpMult = xpChallengeMultiplier(state, monster, mSpec);
+  grantXP(state, Math.round(xpFromDamage(damageApplied, monster) * xpMult));
 
   if (monster.hp <= 0) {
     pushLog(state, `The ${MONSTER_TYPES[monster.type]?.name ?? monster.type} dies.`);
 
-    grantXP(state, xpKillBonus(monster.type));
+    grantXP(state, Math.round(xpKillBonus(monster.type, monster.z ?? p.z) * xpMult));
+    markDepthKillForXp(state, monster.z ?? p.z);
 
     if (monster.origin === "base") {
       state.removedIds.add(monster.id);
@@ -10923,6 +11071,7 @@ function exportSave(state) {
   const dynamic = Array.from(state.dynamic.values());
   const visitedDoors = Array.from(state.visitedDoors ?? []);
   const exploredChunks = Array.from(state.exploredChunks ?? []);
+  const xpDepthKills = ensureDepthKillCounters(state);
 
   const payload = {
     v: 8,
@@ -10940,6 +11089,7 @@ function exportSave(state) {
     turn: state.turn,
     visitedDoors,
     exploredChunks,
+    xpDepthKills,
     surfaceLink: state.surfaceLink ?? null,
     startSpawn: state.startSpawn ?? null,
     shop: state.shop ?? null,
@@ -10973,6 +11123,18 @@ function normalizeDynamicEntries(items) {
     const type = normalizeItemType(raw.type);
     if (!ITEM_TYPES[type]) continue;
     out.push({ ...raw, type, amount: Math.max(1, Math.floor(raw.amount ?? 1)) });
+  }
+  return out;
+}
+
+function normalizeDepthKillCounters(raw) {
+  const out = {};
+  if (!raw || typeof raw !== "object") return out;
+  for (const [depthKey, countRaw] of Object.entries(raw)) {
+    const depth = Math.max(0, Math.floor(Number(depthKey)));
+    const count = Math.max(0, Math.floor(Number(countRaw)));
+    if (!Number.isFinite(depth) || !Number.isFinite(count) || count <= 0) continue;
+    out[depth] = count;
   }
   return out;
 }
@@ -11121,6 +11283,7 @@ function importSave(saveStr) {
       turn: payload.turn ?? 0,
       visitedDoors: new Set(payload.visitedDoors ?? []),
       exploredChunks: new Set(payload.exploredChunks ?? []),
+      xpDepthKills: normalizeDepthKillCounters(payload.xpDepthKills ?? {}),
       surfaceLink: payload.surfaceLink ?? null,
       startSpawn: payload.startSpawn ?? null,
       shop: payload.shop ?? null,
