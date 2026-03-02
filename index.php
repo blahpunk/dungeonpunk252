@@ -2210,9 +2210,38 @@ if (!is_string($spriteOverridesJson)) {
         background: rgba(12, 18, 30, 0.9);
         padding: 10px;
         margin-bottom: 8px;
+        display: grid;
+        grid-template-columns: 62px minmax(0, 1fr);
+        gap: 10px;
+        align-items: center;
       }
       .charSlotRow:last-child {
         margin-bottom: 0;
+      }
+      .charSlotVisual {
+        width: 62px;
+        height: 62px;
+        border: 1px solid #2b3956;
+        border-radius: 8px;
+        background: rgba(9, 13, 22, 0.95);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+      }
+      .charSlotSprite {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        image-rendering: pixelated;
+      }
+      .charSlotSpriteFallback {
+        font-size: 28px;
+        color: #d9e7ff;
+        font-weight: 800;
+      }
+      .charSlotInfo {
+        min-width: 0;
       }
       .charSlotTitle {
         font-size: 14px;
@@ -2508,6 +2537,14 @@ if (!is_string($spriteOverridesJson)) {
         .charChoiceCard.speciesChoiceCard {
           grid-template-columns: 64px minmax(0, 1fr);
           column-gap: 8px;
+        }
+        .charSlotRow {
+          grid-template-columns: 52px minmax(0, 1fr);
+          gap: 8px;
+        }
+        .charSlotVisual {
+          width: 52px;
+          height: 52px;
         }
         .speciesChoiceCard .charChoiceVisual {
           width: 64px;

@@ -4992,11 +4992,18 @@ function renderCharacterSelectBody() {
     row.style.background = selected ? "rgba(28, 45, 73, 0.92)" : "rgba(12, 18, 30, 0.9)";
     const classLabel = characterClassDef(slot.profile?.classId ?? "").name;
     const speciesLabel = characterSpeciesDef(slot.profile?.speciesId ?? "").name;
+    const spriteDisplay = resolveCharacterSpriteDisplay(slot.profile?.speciesId ?? "", slot.profile?.classId ?? "");
+    const visual = spriteDisplay.src
+      ? `<img class="charSlotSprite" src="${spriteDisplay.src}" alt="${escapeHtmlText(speciesLabel)} ${escapeHtmlText(classLabel)} sprite" />`
+      : `<div class="charSlotSpriteFallback">@</div>`;
     row.innerHTML =
+      `<div class="charSlotVisual">${visual}</div>` +
+      `<div class="charSlotInfo">` +
       `<div class="charSlotTitle">${escapeHtmlText(slot.profile?.name ?? slot.name)}</div>` +
       `<div class="charSlotMeta">Species: ${speciesLabel}  |  Class: ${classLabel}\n` +
       `Level ${slot.level}  |  Last depth ${slot.depth}  |  Deepest ${slot.deepestDepth}\n` +
-      `Updated ${formatSaveTimestamp(slot.updatedAt)}</div>`;
+      `Updated ${formatSaveTimestamp(slot.updatedAt)}</div>` +
+      `</div>`;
     row.addEventListener("click", () => {
       characterUi.selectedSaveId = slot.id;
       setCharacterOverlayStatus("");
