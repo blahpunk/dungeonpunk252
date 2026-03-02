@@ -1654,7 +1654,7 @@ if (!is_string($spriteOverridesJson)) {
         position: absolute;
         top: calc(100% + 8px);
         right: 0;
-        min-width: 210px;
+        min-width: 240px;
         background: linear-gradient(180deg, rgba(17, 26, 41, 0.98) 0%, rgba(10, 16, 28, 0.98) 100%);
         border: 1px solid var(--ui-border);
         border-radius: 10px;
@@ -1665,6 +1665,23 @@ if (!is_string($spriteOverridesJson)) {
       }
       #debugMenu.show {
         display: block;
+      }
+      .adminMenuAction {
+        width: 100%;
+        display: block;
+        text-align: left;
+        border: 1px solid #2a3c5f;
+        background: linear-gradient(180deg, rgba(34, 56, 92, 0.95) 0%, rgba(22, 35, 58, 0.95) 100%);
+        color: var(--text);
+        border-radius: 8px;
+        padding: 7px 9px;
+        font-size: 12px;
+        font-weight: 600;
+        margin: 0 0 8px 0;
+      }
+      .adminMenuDivider {
+        border-top: 1px solid #27314a;
+        margin: 2px 0 6px 0;
       }
       .debugToggle {
         display: flex;
@@ -3893,12 +3910,11 @@ if (!is_string($spriteOverridesJson)) {
       <?php endif; ?>
       <button id="btnInfo" type="button">Info</button>
       <?php if ($isAdminUser): ?>
-        <button id="btnSpriteEditor" type="button">Sprite Editor</button>
-      <?php endif; ?>
-      <?php if ($isAdminUser): ?>
         <div id="debugMenuWrap">
-          <button id="btnDebugMenu" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="debugMenu">Debug</button>
+          <button id="btnDebugMenu" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="debugMenu">Admin</button>
           <div id="debugMenu" aria-hidden="true">
+            <button id="btnSpriteEditor" type="button" class="adminMenuAction">Sprite Editor</button>
+            <div class="adminMenuDivider"></div>
             <label class="debugToggle" for="toggleGodmode">
               <span>Godmode</span>
               <input id="toggleGodmode" type="checkbox" />

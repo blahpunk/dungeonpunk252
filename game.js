@@ -8905,26 +8905,32 @@ function tileGlyph(t) {
   if (t === DOOR_OPEN_MAGENTA) return { g: "/", c: "#aab8ff" };
   return null;
 }
+function firstAvailableSpriteId(...ids) {
+  for (const id of ids) {
+    if (id && SPRITE_SOURCES[id]) return id;
+  }
+  return null;
+}
 function tileSpriteId(state, wx, wy, wz, t) {
-  if (t === LOCK_GREEN) return "door_green_closed";
-  if (t === LOCK_YELLOW) return null;
-  if (t === LOCK_ORANGE) return null;
-  if (t === LOCK_RED) return "door_red_closed";
-  if (t === LOCK_VIOLET) return "door_purple_closed";
-  if (t === LOCK_INDIGO) return "door_blue_closed";
-  if (t === LOCK_BLUE) return "door_blue_closed";
-  if (t === LOCK_PURPLE) return "door_purple_closed";
-  if (t === LOCK_MAGENTA) return "door_blue_closed";
+  if (t === LOCK_GREEN) return firstAvailableSpriteId("door_green_closed", "door_closed");
+  if (t === LOCK_YELLOW) return firstAvailableSpriteId("door_yellow_closed", "door_closed");
+  if (t === LOCK_ORANGE) return firstAvailableSpriteId("door_orange_closed", "door_closed");
+  if (t === LOCK_RED) return firstAvailableSpriteId("door_red_closed", "door_closed");
+  if (t === LOCK_VIOLET) return firstAvailableSpriteId("door_violet_closed", "door_purple_closed", "door_closed");
+  if (t === LOCK_INDIGO) return firstAvailableSpriteId("door_indigo_closed", "door_blue_closed", "door_closed");
+  if (t === LOCK_BLUE) return firstAvailableSpriteId("door_blue_closed", "door_indigo_closed", "door_closed");
+  if (t === LOCK_PURPLE) return firstAvailableSpriteId("door_purple_closed", "door_violet_closed", "door_closed");
+  if (t === LOCK_MAGENTA) return firstAvailableSpriteId("door_magenta_closed", "door_indigo_closed", "door_blue_closed", "door_closed");
   if (t === DOOR_CLOSED) return "door_closed";
-  if (t === DOOR_OPEN_GREEN) return "door_green_open";
-  if (t === DOOR_OPEN_YELLOW) return null;
-  if (t === DOOR_OPEN_ORANGE) return null;
-  if (t === DOOR_OPEN_RED) return "door_red_open";
-  if (t === DOOR_OPEN_VIOLET) return "door_purple_open";
-  if (t === DOOR_OPEN_INDIGO) return "door_blue_open";
-  if (t === DOOR_OPEN_BLUE) return "door_blue_open";
-  if (t === DOOR_OPEN_PURPLE) return "door_purple_open";
-  if (t === DOOR_OPEN_MAGENTA) return "door_blue_open";
+  if (t === DOOR_OPEN_GREEN) return firstAvailableSpriteId("door_green_open", "door_open");
+  if (t === DOOR_OPEN_YELLOW) return firstAvailableSpriteId("door_yellow_open", "door_open");
+  if (t === DOOR_OPEN_ORANGE) return firstAvailableSpriteId("door_orange_open", "door_open");
+  if (t === DOOR_OPEN_RED) return firstAvailableSpriteId("door_red_open", "door_open");
+  if (t === DOOR_OPEN_VIOLET) return firstAvailableSpriteId("door_violet_open", "door_purple_open", "door_open");
+  if (t === DOOR_OPEN_INDIGO) return firstAvailableSpriteId("door_indigo_open", "door_blue_open", "door_open");
+  if (t === DOOR_OPEN_BLUE) return firstAvailableSpriteId("door_blue_open", "door_indigo_open", "door_open");
+  if (t === DOOR_OPEN_PURPLE) return firstAvailableSpriteId("door_purple_open", "door_violet_open", "door_open");
+  if (t === DOOR_OPEN_MAGENTA) return firstAvailableSpriteId("door_magenta_open", "door_indigo_open", "door_blue_open", "door_open");
   if (t === DOOR_OPEN) return "door_open";
   if (t === STAIRS_DOWN && wz === SURFACE_LEVEL && wx === 0 && wy === 0) return "surface_entrance";
   if (t === STAIRS_UP && wz === 0) {

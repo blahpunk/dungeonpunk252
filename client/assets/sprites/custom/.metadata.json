@@ -1,12 +1,16 @@
 {
     "version": 1,
     "scale": {
-        "archer": 135,
+        "ancient_automaton": 205,
+        "archer": 215,
+        "basilisk": 205,
+        "cave_troll": 205,
+        "dire_wolf": 205,
         "door_closed": 125,
         "door_open": 125,
         "door_red_closed": 135,
         "door_red_open": 135,
-        "giant_spider": 135,
+        "giant_spider": 205,
         "goblin": 140,
         "hero": 180,
         "hero_automaton_alchemist": 150,
@@ -78,8 +82,20 @@
         "hero_skulker_slipblade": 180,
         "hero_skulker_trapwright": 180,
         "hero_skulker_tunnel_striker": 180,
+        "hobgoblin": 205,
         "rat": 125,
-        "skeleton": 225,
-        "surface_entrance": 180
+        "rogue": 205,
+        "shrine": 265,
+        "skeleton": 205,
+        "slime_green": 165,
+        "slime_indigo": 165,
+        "slime_orange": 165,
+        "slime_red": 165,
+        "slime_violet": 165,
+        "slime_yellow": 165,
+        "stairs_down": 130,
+        "stairs_up": 130,
+        "surface_entrance": 180,
+        "wraith": 205
     }
 }
